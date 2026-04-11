@@ -60,8 +60,6 @@ def _resource_to_feed(r: Resource) -> FeedItemSchema:
 def get_feed(
     university: Optional[str] = Query(None),
     needs: Optional[str] = Query(None),  # comma-separated: food,mental_health,substance,shelter,campus
-    limit: int = Query(200, ge=1, le=500),
-    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
     """
@@ -71,13 +69,15 @@ def get_feed(
     """
     now = datetime.now(timezone.utc)
     events = [_event_to_feed(e) for e in db.query(Event).filter(Event.start_time >= now).all()]
-    resources = [
-        _resource_to_feed(r)
-        for r in db.query(Resource).filter(
+
+    # Query each category separately to guarantee all types are included
+    resources = []
+    for cat in FEED_CATEGORIES:
+        rows = db.query(Resource).filter(
             Resource.is_active == True,
-            Resource.category.in_(FEED_CATEGORIES),
+            Resource.category == cat,
         ).all()
-    ]
+        resources.extend(_resource_to_feed(r) for r in rows)
     items = events + resources
 
     if needs:
@@ -91,4 +91,4 @@ def get_feed(
         other = [i for i in items if i.university != university]
         items = campus + other
 
-    return items[offset : offset + limit]
+    return items
