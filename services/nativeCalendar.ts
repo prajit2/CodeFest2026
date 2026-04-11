@@ -10,8 +10,25 @@ async function getRockyCalendarId(): Promise<string | null> {
   const existing = calendars.find((c) => c.title === 'RockyAI');
   if (existing) return existing.id;
 
-  if (Platform.OS !== 'ios') return null;
+  if (Platform.OS === 'android') {
+    // Prefer an existing writable calendar so we don't proliferate accounts.
+    // If none exists, create a local (non-syncing) calendar.
+    const writable = calendars.find((c) => c.allowsModifications);
+    if (writable) return writable.id;
 
+    return Calendar.createCalendarAsync({
+      title: 'RockyAI',
+      color: '#2C7A3A',
+      entityType: Calendar.EntityTypes.EVENT,
+      name: 'RockyAI',
+      ownerAccount: 'RockyAI',
+      accessLevel: Calendar.CalendarAccessLevel.OWNER,
+      accountName: 'RockyAI',
+      accountType: 'LOCAL',
+    });
+  }
+
+  // iOS
   const defaultCalendar = await Calendar.getDefaultCalendarAsync();
   return Calendar.createCalendarAsync({
     title: 'RockyAI',
