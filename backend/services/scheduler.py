@@ -8,50 +8,46 @@ logger = logging.getLogger(__name__)
 scheduler = BackgroundScheduler()
 
 
+def _webmercator_to_wgs84(x: float, y: float):
+    """Convert Web Mercator (EPSG:3857) x/y to WGS-84 lat/lon."""
+    import math
+    lon = x / 20037508.342789244 * 180.0
+    lat = math.degrees(2 * math.atan(math.exp(y / 20037508.342789244 * math.pi)) - math.pi / 2)
+    return lat, lon
+
+
 def ingest_open_data_philly():
-    """Pull food banks, shelters, clinics from OpenDataPhilly ArcGIS REST API. No API key needed."""
+    """Pull food banks, shelters, clinics from public OpenDataPhilly ArcGIS REST services."""
     import httpx
     import hashlib
     from datetime import datetime, timezone
     from database import SessionLocal
     from models import Resource
 
+    # Only services confirmed publicly accessible (no token required).
+    # Geometry is Web Mercator (x/y) — converted to WGS-84 via _webmercator_to_wgs84().
     SOURCES = [
         {
-            "url": "https://services.arcgis.com/fLeGjb7u4uXqeF9q/arcgis/rest/services/Human_Services_Locations/FeatureServer/0/query",
+            # Philadelphia Department of Public Health community health centers
+            "url": "https://services.arcgis.com/fLeGjb7u4uXqeF9q/arcgis/rest/services/Health_Centers/FeatureServer/0/query",
+            "default_category": "clinic",
+            "name_field": "name",
+            "address_field": "full_address",
+            "phone_field": "phone",
+            "lat_override": None,
+            "lon_override": None,
+        },
+        {
+            # Bus shelters repurposed as safe-space markers (shelter category)
+            "url": "https://services.arcgis.com/fLeGjb7u4uXqeF9q/arcgis/rest/services/SheltersLocations_20251030_/FeatureServer/0/query",
             "default_category": "shelter",
-            "name_field": "HSNAME",
-            "type_field": "HSTYPE",
-            "address_field": "ADDRESS",
-            "phone_field": "PHONE",
-        },
-        {
-            "url": "https://services.arcgis.com/fLeGjb7u4uXqeF9q/arcgis/rest/services/Healthy_Corner_Stores/FeatureServer/0/query",
-            "default_category": "food_bank",
-            "name_field": "STORE_NAME",
-            "type_field": None,
-            "address_field": "ADDRESS",
+            "name_field": "Site__Site_Name",
+            "address_field": "Full_Address",
             "phone_field": None,
-        },
-        {
-            "url": "https://services.arcgis.com/fLeGjb7u4uXqeF9q/arcgis/rest/services/Grocery_Stores/FeatureServer/0/query",
-            "default_category": "food_bank",
-            "name_field": "STORE_NAME",
-            "type_field": None,
-            "address_field": "ADDRESS",
-            "phone_field": None,
+            "lat_override": "Lat",   # service provides pre-projected lat/lon in attrs
+            "lon_override": "Long",
         },
     ]
-
-    TYPE_MAP = {
-        "FOOD BANK": "food_bank",
-        "FOOD PANTRY": "food_bank",
-        "SHELTER": "shelter",
-        "EMERGENCY SHELTER": "shelter",
-        "HEALTH CENTER": "clinic",
-        "CLINIC": "clinic",
-        "MENTAL HEALTH": "mental_health",
-    }
 
     PARAMS = {"f": "json", "where": "1=1", "outFields": "*", "resultRecordCount": 2000}
 
@@ -75,8 +71,18 @@ def ingest_open_data_philly():
                 for feature in data.get("features", []):
                     attrs = feature.get("attributes", {})
                     geom = feature.get("geometry", {})
-                    lon = geom.get("x")
-                    lat = geom.get("y")
+
+                    # Prefer explicit lat/lon attributes when provided by the service
+                    if source["lat_override"] and source["lon_override"]:
+                        lat = attrs.get(source["lat_override"])
+                        lon = attrs.get(source["lon_override"])
+                    else:
+                        raw_x = geom.get("x")
+                        raw_y = geom.get("y")
+                        if raw_x is None or raw_y is None:
+                            continue
+                        lat, lon = _webmercator_to_wgs84(raw_x, raw_y)
+
                     if not lat or not lon:
                         continue
 
@@ -84,11 +90,9 @@ def ingest_open_data_philly():
                     if not name:
                         continue
 
-                    raw_type = (attrs.get(source["type_field"]) or "").upper() if source["type_field"] else ""
-                    category_str = TYPE_MAP.get(raw_type, source["default_category"])
-
-                    rid = "odp_" + hashlib.md5(f"{name}{lat}{lon}".encode()).hexdigest()[:12]
-                    address = attrs.get(source["address_field"]) or ""
+                    category_str = source["default_category"]
+                    rid = "odp_" + hashlib.md5(f"{name}{round(lat,5)}{round(lon,5)}".encode()).hexdigest()[:12]
+                    address = (attrs.get(source["address_field"]) or "").strip()
                     phone = attrs.get(source["phone_field"]) if source["phone_field"] else None
 
                     seen_ids.add(rid)
@@ -133,18 +137,18 @@ def ingest_crime_data():
     from database import SessionLocal
     from models import CrimeCell
 
-    CARTO_URL = (
-        "https://phl.carto.com/api/v2/sql"
-        "?q=SELECT+point_x,point_y+FROM+incidents_part1_part2"
-        "+WHERE+dispatch_date+%3E%3D+current_date+-+90"
-        "&format=json"
+    CARTO_BASE = "https://phl.carto.com/api/v2/sql"
+    # Cast dispatch_date to ::date to avoid "text >= date" operator error.
+    CARTO_QUERY = (
+        "SELECT point_x, point_y FROM incidents_part1_part2 "
+        "WHERE dispatch_date::date >= current_date - interval '90 days'"
     )
     CELL_SIZE = 0.005  # degrees, ~400m
 
     logger.info("[scheduler] ingest_crime_data — fetching")
     try:
         with httpx.Client(timeout=60.0) as client:
-            resp = client.get(CARTO_URL)
+            resp = client.get(CARTO_BASE, params={"q": CARTO_QUERY, "format": "json"})
             resp.raise_for_status()
             data = resp.json()
     except httpx.HTTPError as e:
@@ -212,8 +216,13 @@ def ingest_septa_stops():
     db = SessionLocal()
     try:
         upserted = 0
-        with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
-            with zf.open("stops.txt") as stops_file:
+        # The SEPTA GTFS zip contains nested zips (google_bus.zip, google_rail.zip).
+        # stops.txt lives inside google_bus.zip.
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as outer_zf:
+            with outer_zf.open("google_bus.zip") as bus_zip_bytes:
+                inner_zf = zipfile.ZipFile(io.BytesIO(bus_zip_bytes.read()))
+        with inner_zf:
+            with inner_zf.open("stops.txt") as stops_file:
                 reader = csv.DictReader(io.TextIOWrapper(stops_file, encoding="utf-8"))
                 for row in reader:
                     stop_id = row.get("stop_id", "").strip()
