@@ -23,8 +23,11 @@ async function getRockyCalendarId(): Promise<string | null> {
       name: 'RockyAI',
       ownerAccount: 'RockyAI',
       accessLevel: Calendar.CalendarAccessLevel.OWNER,
-      accountName: 'RockyAI',
-      accountType: 'LOCAL',
+      source: {
+        type: 'LOCAL',
+        name: 'RockyAI',
+        isLocalAccount: true,
+      },
     });
   }
 
