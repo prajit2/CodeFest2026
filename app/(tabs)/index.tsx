@@ -9,8 +9,10 @@ import { useRouter } from 'expo-router';
 import { MessageBubble, Message } from '@/components/chat/MessageBubble';
 import { QuickActionChips } from '@/components/chat/QuickActionChips';
 import { CrisisPanel } from '@/components/chat/CrisisPanel';
+import { RockyAvatar } from '@/components/chat/RockyAvatar';
 import { detectIntent } from '@/services/rockyIntent';
 import { useMapStore } from '@/store/mapStore';
+import { api } from '@/services/api';
 
 const WELCOME: Message = {
   id: 'welcome',
@@ -28,7 +30,7 @@ export default function ChatScreen() {
   const router = useRouter();
   const mapDispatch = useMapStore((s) => s.dispatch);
 
-  const send = useCallback((text: string) => {
+  const send = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
     const userMsg: Message = {
@@ -41,6 +43,7 @@ export default function ChatScreen() {
     const intent = detectIntent(text);
     let rockyText = '';
     let crisis = false;
+    let rockyEvents: Message['events'] | undefined;
 
     switch (intent.type) {
       case 'crisis':
@@ -57,6 +60,15 @@ export default function ChatScreen() {
         mapDispatch({ type: 'CENTER_ON_LOCATION', latitude: 39.9526, longitude: -75.1652 });
         setTimeout(() => router.push('/(tabs)/map'), 600);
         break;
+      case 'show_events':
+        rockyText = intent.response;
+        try {
+          const data = await api.feed.get();
+          rockyEvents = data;
+        } catch {
+          rockyText = "I couldn't load events right now. Try again in a moment.";
+        }
+        break;
       default:
         rockyText = intent.response ?? "I can help you find resources in Philadelphia. Try asking about food, shelter, clinics, or transit.";
     }
@@ -66,6 +78,7 @@ export default function ChatScreen() {
       role: 'rocky',
       text: rockyText,
       timestamp: new Date(),
+      ...(rockyEvents !== undefined ? { events: rockyEvents } : {}),
     };
 
     setMessages((prev) => [...prev.slice(-9), userMsg, rockyMsg]); // keep last 10
@@ -111,7 +124,7 @@ export default function ChatScreen() {
       {/* Rocky header */}
       <View style={styles.header}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>🐻</Text>
+          <RockyAvatar size={44} />
         </View>
         <View>
           <Text style={styles.headerName}>Rocky</Text>
@@ -160,8 +173,7 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E5E5EA', gap: 12 },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 22 },
+  avatar: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   headerName: { fontSize: 16, fontWeight: '700', color: '#1C1C1E' },
   headerSub: { fontSize: 12, color: '#8E8E93' },
   messages: { paddingVertical: 12 },

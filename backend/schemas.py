@@ -1,9 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
 
 class SeptaStopSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     latitude: float
@@ -12,6 +13,7 @@ class SeptaStopSchema(BaseModel):
 
 
 class ResourceSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     category: str
@@ -25,6 +27,7 @@ class ResourceSchema(BaseModel):
 
 
 class EventSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     title: str
     description: Optional[str] = None
@@ -39,6 +42,7 @@ class EventSchema(BaseModel):
 
 
 class FeedItemSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     title: str
     description: Optional[str] = None
@@ -50,12 +54,14 @@ class FeedItemSchema(BaseModel):
 
 
 class CrimePointSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     latitude: float
     longitude: float
     weight: float
 
 
 class SeptaArrivalSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     route: str
     destination: str
     minutes_away: int

@@ -1,11 +1,45 @@
 from fastapi import APIRouter, Query, Depends
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime
 from database import get_db
 from schemas import FeedItemSchema
-from services.stub_data import STUB_EVENTS
+from models import Event, Resource
 
 router = APIRouter(prefix="/feed", tags=["feed"])
+
+NEEDS_TO_CATEGORIES = {
+    "food": {"free_food", "food_bank"},
+    "mental_health": {"mental_health", "clinic", "clinic_popup"},
+    "substance": {"support_group", "event"},
+}
+
+
+def _event_to_feed(e: Event) -> FeedItemSchema:
+    return FeedItemSchema(
+        id=e.id,
+        title=e.title,
+        description=e.description,
+        university=e.university,
+        location=e.location,
+        start_time=e.start_time.isoformat() + "Z",
+        category=e.category,
+        resource_id=e.resource_id,
+    )
+
+
+def _resource_to_feed(r: Resource) -> FeedItemSchema:
+    cat = r.category.value if hasattr(r.category, "value") else r.category
+    return FeedItemSchema(
+        id=r.id,
+        title=r.name,
+        description=r.description,
+        university=None,
+        location=r.address,
+        start_time=datetime.utcnow().isoformat() + "Z",
+        category=cat,
+        resource_id=r.id,
+    )
 
 
 @router.get("", response_model=List[FeedItemSchema])
@@ -17,15 +51,21 @@ def get_feed(
     """
     Personalized feed. University students see their campus events first.
     needs param filters by content type (food, mental_health, substance).
-    TODO Week 3: real personalization logic using user preferences.
     """
-    items = list(STUB_EVENTS)
+    now = datetime.utcnow()
+    events = [_event_to_feed(e) for e in db.query(Event).filter(Event.start_time >= now).all()]
+    resources = [_resource_to_feed(r) for r in db.query(Resource).filter(Resource.is_active == True).all()]
+    items = events + resources
 
-    # Campus events float to top for students
+    if needs:
+        allowed: set = set()
+        for need in needs.split(","):
+            allowed |= NEEDS_TO_CATEGORIES.get(need.strip(), set())
+        items = [i for i in items if i.category in allowed]
+
     if university:
-        campus = [e for e in items if e.get("university") == university]
-        other = [e for e in items if e.get("university") != university]
+        campus = [i for i in items if i.university == university]
+        other = [i for i in items if i.university != university]
         items = campus + other
 
-    items = sorted(items, key=lambda e: e["start_time"])
     return items
