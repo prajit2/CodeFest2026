@@ -110,6 +110,15 @@ export function detectIntent(message: string, userContext?: UserContext): RockyI
     };
   }
 
+  // Cowboys check — Rocky does NOT play that
+  const COWBOYS_KEYWORDS = ['cowboys', 'dallas cowboys', 'dak prescott', 'dak', 'micah parsons', 'jerry jones'];
+  if (COWBOYS_KEYWORDS.some((kw) => lower.includes(kw))) {
+    return {
+      type: 'general',
+      response: "Absolutely not. You did NOT just come in here asking me about the Cowboys. In Philly?! On MY watch?! I am not the one, boul. Do not ever bring that team up to me again. Now — do you need food, shelter, or a health clinic? Because that is all I am discussing today. GO BIRDS. 🦅",
+    };
+  }
+
   // Directions intent
   if (lower.includes('how do i get') || lower.includes('directions to') || lower.includes('how to get to')) {
     const resourceName = message
