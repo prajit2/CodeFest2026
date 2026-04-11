@@ -4,6 +4,20 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { api } from '@/services/api';
 import { FeedItemSchema } from '@/services/apiTypes';
 import { useUserStore } from '@/store/userStore';
+import { useCalendarStore } from '@/store/calendarStore';
+import { scheduleEventReminder } from '@/services/notifications';
+import { CalendarEvent } from '@/constants/types';
+
+function toCalendarEvent(item: FeedItemSchema): CalendarEvent {
+  return {
+    id: item.id,
+    title: item.title,
+    location: item.location,
+    startTime: item.start_time,
+    category: item.category as CalendarEvent['category'],
+    resourceId: item.resource_id,
+  };
+}
 
 const CATEGORY_COLORS: Record<string, string> = {
   free_food: '#2C7A3A',
@@ -19,7 +33,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   resource: 'Resource',
 };
 
-function FeedCard({ item }: { item: FeedItemSchema }) {
+function FeedCard({ item, saved, onSave }: { item: FeedItemSchema; saved: boolean; onSave: () => void }) {
   const color = CATEGORY_COLORS[item.category] ?? '#8E8E93';
   const date = new Date(item.start_time);
   const timeStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -31,7 +45,12 @@ function FeedCard({ item }: { item: FeedItemSchema }) {
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
           <Text style={[styles.tag, { color }]}>{CATEGORY_LABELS[item.category] ?? item.category}</Text>
-          {item.university && <Text style={styles.university}>{item.university.toUpperCase()}</Text>}
+          <View style={styles.cardHeaderRight}>
+            {item.university && <Text style={styles.university}>{item.university.toUpperCase()}</Text>}
+            <TouchableOpacity onPress={onSave} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <FontAwesome name={saved ? 'bookmark' : 'bookmark-o'} size={16} color={saved ? '#2C7A3A' : '#C7C7CC'} />
+            </TouchableOpacity>
+          </View>
         </View>
         <Text style={styles.cardTitle}>{item.title}</Text>
         {item.description && <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>}
@@ -56,6 +75,14 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const university = useUserStore((s) => s.university);
   const isStudent = useUserStore((s) => s.isStudent);
+  const saveEvent = useCalendarStore((s) => s.saveEvent);
+  const isSaved = useCalendarStore((s) => s.isSaved);
+
+  async function handleSave(item: FeedItemSchema) {
+    const event = toCalendarEvent(item);
+    const notificationId = await scheduleEventReminder(event.id, event.title, event.startTime);
+    saveEvent({ ...event, notificationId: notificationId ?? undefined });
+  }
 
   async function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -86,7 +113,7 @@ export default function FeedScreen() {
       <FlatList
         data={items}
         keyExtractor={(i) => i.id}
-        renderItem={({ item }) => <FeedCard item={item} />}
+        renderItem={({ item }) => <FeedCard item={item} saved={isSaved(item.id)} onSave={() => handleSave(item)} />}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#2C7A3A" />}
         ListEmptyComponent={<Text style={styles.empty}>No events right now. Pull to refresh.</Text>}
@@ -105,6 +132,7 @@ const styles = StyleSheet.create({
   cardAccent: { width: 4 },
   cardContent: { flex: 1, padding: 14, gap: 6 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   tag: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   university: { fontSize: 10, fontWeight: '700', color: '#8E8E93', letterSpacing: 0.5 },
   cardTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E' },

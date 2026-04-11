@@ -1,10 +1,8 @@
-import { useState } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, SectionList } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { CalendarEvent } from '@/constants/types';
-
-// TODO Week 3: load from expo-calendar + saved events store
-const STUB_SAVED: CalendarEvent[] = [];
+import { useCalendarStore } from '@/store/calendarStore';
+import { cancelEventReminder } from '@/services/notifications';
 
 function EmptyCalendar() {
   return (
@@ -46,11 +44,13 @@ function EventCard({ event, onRemove }: { event: CalendarEvent; onRemove: (id: s
 }
 
 export default function CalendarScreen() {
-  const [saved, setSaved] = useState<CalendarEvent[]>(STUB_SAVED);
+  const saved = useCalendarStore((s) => s.savedEvents);
+  const removeEventFromStore = useCalendarStore((s) => s.removeEvent);
 
-  function removeEvent(id: string) {
-    setSaved((prev) => prev.filter((e) => e.id !== id));
-    // TODO Week 3: cancel push notification, remove from native calendar
+  async function removeEvent(id: string) {
+    const event = saved.find((e) => e.id === id);
+    if (event?.notificationId) await cancelEventReminder(event.notificationId);
+    removeEventFromStore(id);
   }
 
   return (
