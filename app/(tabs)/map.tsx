@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, ActivityIndicator, Text } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Text, Platform } from 'react-native';
 import MapView, { Marker, Heatmap, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useMapStore } from '@/store/mapStore';
@@ -115,6 +115,10 @@ export default function MapScreen() {
         initialRegion={PHILLY_REGION}
         showsUserLocation={locationGranted}
         showsMyLocationButton={locationGranted}
+        zoomEnabled
+        scrollEnabled
+        pitchEnabled
+        rotateEnabled
       >
         {visibleResources.map((resource) => (
           <Marker
@@ -126,7 +130,7 @@ export default function MapScreen() {
           />
         ))}
 
-        {crimeOverlayVisible && (
+        {crimeOverlayVisible && Platform.OS === 'android' && (
           <Heatmap
             points={crimePoints}
             opacity={0.7}

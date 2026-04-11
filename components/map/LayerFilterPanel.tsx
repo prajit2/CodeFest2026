@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView, TouchableOpacity, Text, View } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, Text, View, Platform } from 'react-native';
 import { useMapStore } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
 import { ResourceCategory } from '@/constants/types';
@@ -52,15 +52,17 @@ export function LayerFilterPanel() {
             </TouchableOpacity>
           );
         })}
-        <TouchableOpacity
-          style={[styles.chip, { borderColor: '#F44336' }, crimeOverlayVisible && { backgroundColor: '#F44336' }]}
-          onPress={toggleCrimeOverlay}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.chipText, crimeOverlayVisible && styles.chipTextActive]}>
-            Crime Overlay
-          </Text>
-        </TouchableOpacity>
+        {Platform.OS === 'android' && (
+          <TouchableOpacity
+            style={[styles.chip, { borderColor: '#F44336' }, crimeOverlayVisible && { backgroundColor: '#F44336' }]}
+            onPress={toggleCrimeOverlay}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.chipText, crimeOverlayVisible && styles.chipTextActive]}>
+              Crime Overlay
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );
