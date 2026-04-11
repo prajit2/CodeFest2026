@@ -3,6 +3,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { CalendarEvent } from '@/constants/types';
 import { useCalendarStore } from '@/store/calendarStore';
 import { cancelEventReminder } from '@/services/notifications';
+import { removeFromNativeCalendar } from '@/services/nativeCalendar';
 
 function EmptyCalendar() {
   return (
@@ -49,7 +50,10 @@ export default function CalendarScreen() {
 
   async function removeEvent(id: string) {
     const event = saved.find((e) => e.id === id);
-    if (event?.notificationId) await cancelEventReminder(event.notificationId);
+    await Promise.all([
+      event?.notificationId ? cancelEventReminder(event.notificationId) : Promise.resolve(),
+      event?.nativeCalendarEventId ? removeFromNativeCalendar(event.nativeCalendarEventId) : Promise.resolve(),
+    ]);
     removeEventFromStore(id);
   }
 

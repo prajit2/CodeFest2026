@@ -55,6 +55,7 @@ export interface CalendarEvent {
   category: FeedItem['category'];
   resourceId?: string;
   notificationId?: string;
+  nativeCalendarEventId?: string;
 }
 
 // Chat-to-map bridge — Rocky sends this, map receives it

@@ -14,7 +14,12 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.CodeFest2026",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Rocky uses your microphone for voice input.",
+        "NSSpeechRecognitionUsageDescription": "Rocky uses speech recognition to understand your voice commands."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -30,7 +35,14 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Allow RockyAI to add saved events to your calendar."
+        }
+      ],
+      "@react-native-voice/voice"
     ],
     "experiments": {
       "typedRoutes": true

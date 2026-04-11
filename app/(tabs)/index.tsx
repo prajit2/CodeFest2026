@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   StyleSheet, View, TextInput, TouchableOpacity,
   FlatList, KeyboardAvoidingView, Platform, Text,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice';
 import { useRouter } from 'expo-router';
 import { MessageBubble, Message } from '@/components/chat/MessageBubble';
 import { QuickActionChips } from '@/components/chat/QuickActionChips';
@@ -22,6 +23,7 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([WELCOME]);
   const [input, setInput] = useState('');
   const [showCrisis, setShowCrisis] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
   const mapDispatch = useMapStore((s) => s.dispatch);
@@ -47,7 +49,6 @@ export default function ChatScreen() {
         break;
       case 'map_filter':
         rockyText = intent.response ?? "Opening the map for you.";
-        // Chat-to-map dispatch — Person 2 built the receiving end
         mapDispatch(intent.mapAction);
         setTimeout(() => router.push('/(tabs)/map'), 600);
         break;
@@ -72,6 +73,34 @@ export default function ChatScreen() {
     setInput('');
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   }, [mapDispatch, router]);
+
+  useEffect(() => {
+    Voice.onSpeechResults = (e: SpeechResultsEvent) => {
+      const text = e.value?.[0];
+      if (text) send(text);
+      setIsListening(false);
+    };
+    Voice.onSpeechError = (_: SpeechErrorEvent) => {
+      setIsListening(false);
+    };
+    return () => {
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
+  }, [send]);
+
+  async function toggleVoice() {
+    if (isListening) {
+      await Voice.stop();
+      setIsListening(false);
+    } else {
+      try {
+        await Voice.start('en-US');
+        setIsListening(true);
+      } catch {
+        setIsListening(false);
+      }
+    }
+  }
 
   return (
     <KeyboardAvoidingView
@@ -114,9 +143,11 @@ export default function ChatScreen() {
           onSubmitEditing={() => send(input)}
           multiline
         />
-        {/* TODO Week 2: wire up voice input with expo-speech */}
-        <TouchableOpacity style={styles.voiceBtn}>
-          <FontAwesome name="microphone" size={18} color="#8E8E93" />
+        <TouchableOpacity
+          style={[styles.voiceBtn, isListening && styles.voiceBtnActive]}
+          onPress={toggleVoice}
+        >
+          <FontAwesome name="microphone" size={18} color={isListening ? '#2C7A3A' : '#8E8E93'} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.sendBtn} onPress={() => send(input)}>
           <FontAwesome name="send" size={16} color="#FFFFFF" />
@@ -137,5 +168,6 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', padding: 12, borderTopWidth: 1, borderTopColor: '#E5E5EA', gap: 8 },
   input: { flex: 1, backgroundColor: '#F2F2F7', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, maxHeight: 100, color: '#1C1C1E' },
   voiceBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F2F2F7', alignItems: 'center', justifyContent: 'center' },
+  voiceBtnActive: { backgroundColor: '#E8F5E9' },
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2C7A3A', alignItems: 'center', justifyContent: 'center' },
 });
