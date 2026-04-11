@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🐻 Rocky
+# 🥊 Rocky
 ### Philadelphia Resource Assistant
 
 *Find food, shelter, clinics, transit, and crisis support — instantly.*

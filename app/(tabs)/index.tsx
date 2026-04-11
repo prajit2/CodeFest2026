@@ -111,7 +111,7 @@ export default function ChatScreen() {
       {/* Rocky header */}
       <View style={styles.header}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>🐻</Text>
+          <Text style={styles.avatarText}>🥊</Text>
         </View>
         <View>
           <Text style={styles.headerName}>Rocky</Text>
