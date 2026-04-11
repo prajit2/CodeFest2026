@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, ScrollView, Pressable } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { api } from '@/services/api';
@@ -35,14 +35,23 @@ const CATEGORY_LABELS: Record<string, string> = {
   resource: 'Resource',
 };
 
-function FeedCard({ item, saved, onSave }: { item: FeedItemSchema; saved: boolean; onSave: () => void }) {
+function formatDateTime(isoString: string): string {
+  const date = new Date(isoString);
+  return (
+    date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) +
+    ' at ' +
+    date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  );
+}
+
+function FeedCard({ item, saved, onSave, onPress }: { item: FeedItemSchema; saved: boolean; onSave: () => void; onPress: () => void }) {
   const color = CATEGORY_COLORS[item.category] ?? '#8E8E93';
   const date = new Date(item.start_time);
   const timeStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
     + ' · ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
   return (
-    <TouchableOpacity style={styles.card} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={onPress}>
       <View style={[styles.cardAccent, { backgroundColor: color }]} />
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
@@ -71,10 +80,97 @@ function FeedCard({ item, saved, onSave }: { item: FeedItemSchema; saved: boolea
   );
 }
 
+function FeedDetailSheet({
+  item,
+  saved,
+  onSave,
+  onClose,
+}: {
+  item: FeedItemSchema;
+  saved: boolean;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const color = CATEGORY_COLORS[item.category] ?? '#8E8E93';
+
+  return (
+    <Modal animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={styles.sheetContainer}>
+        {/* Header bar */}
+        <View style={styles.sheetHeader}>
+          <View style={styles.sheetDragHandle} />
+          <Pressable style={styles.sheetCloseBtn} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Close detail sheet">
+            <FontAwesome name="times" size={18} color="#3C3C43" />
+          </Pressable>
+        </View>
+
+        <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}>
+          {/* Category tag */}
+          <View style={[styles.sheetTag, { backgroundColor: color + '1A', borderColor: color }]}>
+            <Text style={[styles.sheetTagText, { color }]}>{CATEGORY_LABELS[item.category] ?? item.category}</Text>
+          </View>
+
+          {/* Title */}
+          <Text style={styles.sheetTitle}>{item.title}</Text>
+
+          {/* University badge */}
+          {item.university && (
+            <View style={styles.sheetUniversityBadge}>
+              <FontAwesome name="graduation-cap" size={12} color="#6C6C70" />
+              <Text style={styles.sheetUniversityText}>{item.university.toUpperCase()}</Text>
+            </View>
+          )}
+
+          {/* Description */}
+          {item.description && (
+            <Text style={styles.sheetDesc}>{item.description}</Text>
+          )}
+
+          {/* Date / time */}
+          <View style={styles.sheetMetaRow}>
+            <FontAwesome name="calendar" size={15} color="#8E8E93" />
+            <Text style={styles.sheetMetaText}>{formatDateTime(item.start_time)}</Text>
+          </View>
+
+          {/* Location */}
+          {item.location && (
+            <View style={styles.sheetMetaRow}>
+              <FontAwesome name="map-marker" size={15} color="#8E8E93" />
+              <Text style={styles.sheetMetaText}>{item.location}</Text>
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Save button */}
+        <View style={styles.sheetFooter}>
+          <TouchableOpacity
+            style={[styles.sheetSaveBtn, saved && styles.sheetSaveBtnSaved]}
+            onPress={saved ? undefined : onSave}
+            disabled={saved}
+            activeOpacity={saved ? 1 : 0.75}
+            accessibilityRole="button"
+            accessibilityLabel={saved ? 'Already saved to calendar' : 'Save to calendar'}
+          >
+            {saved ? (
+              <>
+                <FontAwesome name="check" size={16} color="#FFFFFF" />
+                <Text style={styles.sheetSaveBtnText}>Saved</Text>
+              </>
+            ) : (
+              <Text style={styles.sheetSaveBtnText}>Save to Calendar</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function FeedScreen() {
   const [items, setItems] = useState<FeedItemSchema[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<FeedItemSchema | null>(null);
   const university = useUserStore((s) => s.university);
   const isStudent = useUserStore((s) => s.isStudent);
   const saveEvent = useCalendarStore((s) => s.saveEvent);
@@ -122,11 +218,26 @@ export default function FeedScreen() {
       <FlatList
         data={items}
         keyExtractor={(i) => i.id}
-        renderItem={({ item }) => <FeedCard item={item} saved={isSaved(item.id)} onSave={() => handleSave(item)} />}
+        renderItem={({ item }) => (
+          <FeedCard
+            item={item}
+            saved={isSaved(item.id)}
+            onSave={() => handleSave(item)}
+            onPress={() => setSelectedItem(item)}
+          />
+        )}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#2C7A3A" />}
         ListEmptyComponent={<Text style={styles.empty}>No events right now. Pull to refresh.</Text>}
       />
+      {selectedItem && (
+        <FeedDetailSheet
+          item={selectedItem}
+          saved={isSaved(selectedItem.id)}
+          onSave={() => handleSave(selectedItem)}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
     </View>
   );
 }
@@ -150,4 +261,23 @@ const styles = StyleSheet.create({
   metaIcon: { marginLeft: 8 },
   metaText: { fontSize: 12, color: '#8E8E93', flex: 1 },
   empty: { textAlign: 'center', color: '#8E8E93', marginTop: 40, fontSize: 15 },
+  // --- Detail sheet ---
+  sheetContainer: { flex: 1, backgroundColor: '#FFFFFF' },
+  sheetHeader: { alignItems: 'center', paddingTop: 12, paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E5EA' },
+  sheetDragHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#D1D1D6', marginBottom: 8 },
+  sheetCloseBtn: { position: 'absolute', right: 16, top: 12, padding: 4 },
+  sheetScroll: { flex: 1 },
+  sheetContent: { padding: 20, gap: 14 },
+  sheetTag: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
+  sheetTagText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  sheetTitle: { fontSize: 20, fontWeight: '700', color: '#1C1C1E', lineHeight: 26 },
+  sheetUniversityBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sheetUniversityText: { fontSize: 11, fontWeight: '700', color: '#6C6C70', letterSpacing: 0.5 },
+  sheetDesc: { fontSize: 15, color: '#3C3C43', lineHeight: 22 },
+  sheetMetaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  sheetMetaText: { fontSize: 14, color: '#3C3C43', flex: 1, lineHeight: 20 },
+  sheetFooter: { padding: 20, paddingBottom: 36, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E5EA' },
+  sheetSaveBtn: { backgroundColor: '#2C7A3A', borderRadius: 12, paddingVertical: 15, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  sheetSaveBtnSaved: { backgroundColor: '#5A9E68' },
+  sheetSaveBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 });

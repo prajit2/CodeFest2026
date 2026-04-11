@@ -12,6 +12,7 @@ import { CrisisPanel } from '@/components/chat/CrisisPanel';
 import { RockyAvatar } from '@/components/chat/RockyAvatar';
 import { detectIntent } from '@/services/rockyIntent';
 import { useMapStore } from '@/store/mapStore';
+import { api } from '@/services/api';
 
 const WELCOME: Message = {
   id: 'welcome',
@@ -29,7 +30,7 @@ export default function ChatScreen() {
   const router = useRouter();
   const mapDispatch = useMapStore((s) => s.dispatch);
 
-  const send = useCallback((text: string) => {
+  const send = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
     const userMsg: Message = {
@@ -42,6 +43,7 @@ export default function ChatScreen() {
     const intent = detectIntent(text);
     let rockyText = '';
     let crisis = false;
+    let rockyEvents: Message['events'] | undefined;
 
     switch (intent.type) {
       case 'crisis':
@@ -58,6 +60,15 @@ export default function ChatScreen() {
         mapDispatch({ type: 'CENTER_ON_LOCATION', latitude: 39.9526, longitude: -75.1652 });
         setTimeout(() => router.push('/(tabs)/map'), 600);
         break;
+      case 'show_events':
+        rockyText = intent.response;
+        try {
+          const data = await api.feed.get();
+          rockyEvents = data;
+        } catch {
+          rockyText = "I couldn't load events right now. Try again in a moment.";
+        }
+        break;
       default:
         rockyText = intent.response ?? "I can help you find resources in Philadelphia. Try asking about food, shelter, clinics, or transit.";
     }
@@ -67,6 +78,7 @@ export default function ChatScreen() {
       role: 'rocky',
       text: rockyText,
       timestamp: new Date(),
+      ...(rockyEvents !== undefined ? { events: rockyEvents } : {}),
     };
 
     setMessages((prev) => [...prev.slice(-9), userMsg, rockyMsg]); // keep last 10
