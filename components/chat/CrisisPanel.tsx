@@ -9,7 +9,13 @@ export function CrisisPanel() {
         <TouchableOpacity
           key={r.phone}
           style={styles.row}
-          onPress={() => Linking.openURL(`tel:${r.phone}`)}
+          onPress={() => {
+            try {
+              Linking.openURL(`tel:${r.phone}`);
+            } catch (e) {
+              console.warn('CrisisPanel: could not open phone URL', e);
+            }
+          }}
         >
           <View style={styles.info}>
             <Text style={styles.name}>{r.name}</Text>

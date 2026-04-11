@@ -174,19 +174,23 @@ export default function FeedScreen() {
   const university = useUserStore((s) => s.university);
   const isStudent = useUserStore((s) => s.isStudent);
   const saveEvent = useCalendarStore((s) => s.saveEvent);
-  const isSaved = useCalendarStore((s) => s.isSaved);
+  const savedIds = useCalendarStore((s) => new Set(s.savedEvents.map((e) => e.id)));
 
   async function handleSave(item: FeedItemSchema) {
-    const event = toCalendarEvent(item);
-    const [notificationId, nativeCalendarEventId] = await Promise.all([
-      scheduleEventReminder(event.id, event.title, event.startTime),
-      addToNativeCalendar(event),
-    ]);
-    saveEvent({
-      ...event,
-      notificationId: notificationId ?? undefined,
-      nativeCalendarEventId: nativeCalendarEventId ?? undefined,
-    });
+    try {
+      const event = toCalendarEvent(item);
+      const [notificationId, nativeCalendarEventId] = await Promise.all([
+        scheduleEventReminder(event.id, event.title, event.startTime),
+        addToNativeCalendar(event),
+      ]);
+      saveEvent({
+        ...event,
+        notificationId: notificationId ?? undefined,
+        nativeCalendarEventId: nativeCalendarEventId ?? undefined,
+      });
+    } catch (e) {
+      console.warn('Save failed:', e);
+    }
   }
 
   const load = useCallback(async (isRefresh = false) => {
@@ -221,7 +225,7 @@ export default function FeedScreen() {
         renderItem={({ item }) => (
           <FeedCard
             item={item}
-            saved={isSaved(item.id)}
+            saved={savedIds.has(item.id)}
             onSave={() => handleSave(item)}
             onPress={() => setSelectedItem(item)}
           />
@@ -233,7 +237,7 @@ export default function FeedScreen() {
       {selectedItem && (
         <FeedDetailSheet
           item={selectedItem}
-          saved={isSaved(selectedItem.id)}
+          saved={savedIds.has(selectedItem.id)}
           onSave={() => handleSave(selectedItem)}
           onClose={() => setSelectedItem(null)}
         />

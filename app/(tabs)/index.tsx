@@ -34,7 +34,7 @@ export default function ChatScreen() {
     if (!text.trim()) return;
 
     const userMsg: Message = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       role: 'user',
       text: text.trim(),
       timestamp: new Date(),
@@ -64,7 +64,7 @@ export default function ChatScreen() {
         rockyText = intent.response;
         try {
           const data = await api.feed.get();
-          rockyEvents = data;
+          rockyEvents = data.slice(0, 5);
         } catch {
           rockyText = "I couldn't load events right now. Try again in a moment.";
         }
@@ -74,7 +74,7 @@ export default function ChatScreen() {
     }
 
     const rockyMsg: Message = {
-      id: (Date.now() + 1).toString(),
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       role: 'rocky',
       text: rockyText,
       timestamp: new Date(),
@@ -97,7 +97,7 @@ export default function ChatScreen() {
       setIsListening(false);
     };
     return () => {
-      Voice.destroy().then(Voice.removeAllListeners);
+      Voice.destroy().then(() => Voice.removeAllListeners());
     };
   }, [send]);
 
