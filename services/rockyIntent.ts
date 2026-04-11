@@ -162,10 +162,12 @@ export function detectIntent(message: string, userContext?: UserContext): RockyI
   // Smart general fallback
   const wordCount = message.trim().split(/\s+/).length;
   if (lower.includes('thank') || lower.includes('thx')) {
-    return { type: 'general', response: "No jawn! Holler if you need anything else." };
+    const goBirds = Math.random() < 0.5 ? " Go Birds! 🦅" : "";
+    return { type: 'general', response: `No jawn! Holler if you need anything else.${goBirds}` };
   }
   if (['hi', 'hello', 'hey', 'sup', 'yo'].some((kw) => lower.includes(kw))) {
-    return { type: 'general', response: "Yo! I'm Rocky, your Philly jawn for resources. Ask me about free food, shelters, health clinics, SEPTA, or support groups around the city." };
+    const goBirds = Math.random() < 0.4 ? " Go Birds! 🦅" : "";
+    return { type: 'general', response: `Yo! I'm Rocky, your Philly jawn for resources. Ask me about free food, shelters, health clinics, SEPTA, or support groups around the city.${goBirds}` };
   }
   if (lower.includes('?')) {
     return { type: 'general', response: "Ionno about dat one, boul — but I can help you find food, shelter, health clinics, SEPTA, and support nearby. Try: 'Where can I get free food?' or 'Find a health clinic'." };

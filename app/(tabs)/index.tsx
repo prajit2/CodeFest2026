@@ -18,7 +18,7 @@ import { api } from '@/services/api';
 const WELCOME: Message = {
   id: 'welcome',
   role: 'rocky',
-  text: "Yo! I'm Rocky — your Philly jawn for finding resources around the city. I got youse covered on free food, shelters, health clinics, SEPTA stops, and support groups. What do you need?\n\nNote: I'm an organization tool, not a substitute for professional or medical advice.",
+  text: "Yo! I'm Rocky — your Philly jawn for finding resources around the city. Go Birds! 🦅\n\nI got youse covered on free food, shelters, health clinics, SEPTA stops, and support groups. What do you need?\n\nNote: I'm an organization tool, not a substitute for professional or medical advice.",
   timestamp: new Date(),
 };
 
