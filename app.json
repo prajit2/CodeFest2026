@@ -44,7 +44,7 @@
           "calendarPermission": "Allow RockyAI to add saved events to your calendar."
         }
       ],
-      "@react-native-voice/voice"
+      "expo-speech-recognition"
     ],
     "experiments": {
       "typedRoutes": true
