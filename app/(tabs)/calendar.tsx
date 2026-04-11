@@ -19,8 +19,9 @@ function EmptyCalendar() {
 
 function EventCard({ event, onRemove }: { event: CalendarEvent; onRemove: (id: string) => void }) {
   const date = new Date(event.startTime);
+  const isPast = date < new Date();
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isPast && styles.cardPast]}>
       <View style={styles.dateCol}>
         <Text style={styles.dateMonth}>{date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</Text>
         <Text style={styles.dateDay}>{date.getDate()}</Text>
@@ -33,9 +34,12 @@ function EventCard({ event, onRemove }: { event: CalendarEvent; onRemove: (id: s
             <Text style={styles.metaText}>{event.location}</Text>
           </View>
         )}
-        <Text style={styles.time}>
-          {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-        </Text>
+        <View style={styles.timeRow}>
+          <Text style={styles.time}>
+            {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+          </Text>
+          {isPast && <Text style={styles.pastBadge}>Past</Text>}
+        </View>
       </View>
       <TouchableOpacity onPress={() => onRemove(event.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
         <FontAwesome name="trash-o" size={18} color="#C7C7CC" />
@@ -62,6 +66,8 @@ export default function CalendarScreen() {
     }
   }
 
+  const sorted = [...saved].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -69,11 +75,11 @@ export default function CalendarScreen() {
         <Text style={styles.headerSub}>Syncs to your phone calendar</Text>
       </View>
 
-      {saved.length === 0 ? (
+      {sorted.length === 0 ? (
         <EmptyCalendar />
       ) : (
         <FlatList
-          data={saved}
+          data={sorted}
           keyExtractor={(e) => e.id}
           renderItem={({ item }) => <EventCard event={item} onRemove={removeEvent} />}
           contentContainerStyle={styles.list}
@@ -98,6 +104,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 12, color: '#8E8E93' },
   time: { fontSize: 12, color: '#8E8E93' },
+  timeRow: { flexDirection: 'row', alignItems: 'center' },
+  cardPast: { opacity: 0.45 },
+  pastBadge: { fontSize: 11, color: '#C7C7CC', fontWeight: '600', marginLeft: 4 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 16 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#1C1C1E' },
   emptyDesc: { fontSize: 14, color: '#8E8E93', textAlign: 'center', lineHeight: 20 },

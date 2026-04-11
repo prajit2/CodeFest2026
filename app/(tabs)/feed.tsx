@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, ScrollView, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, ScrollView, Pressable, Platform, Linking } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { api } from '@/services/api';
@@ -24,15 +24,27 @@ function toCalendarEvent(item: FeedItemSchema): CalendarEvent {
 
 const CATEGORY_COLORS: Record<string, string> = {
   free_food: '#2C7A3A',
+  food_bank: '#4CAF50',
+  shelter: '#2196F3',
   clinic_popup: '#9C27B0',
+  clinic: '#9C27B0',
+  mental_health: '#9C27B0',
   event: '#2196F3',
+  support_group: '#009688',
+  campus_resource: '#FFC107',
   resource: '#FF9800',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
   free_food: 'Free Food',
+  food_bank: 'Food Bank',
+  shelter: 'Shelter',
   clinic_popup: 'Health Clinic',
+  clinic: 'Health Clinic',
+  mental_health: 'Mental Health',
   event: 'Event',
+  support_group: 'Support Group',
+  campus_resource: 'Campus Resource',
   resource: 'Resource',
 };
 
@@ -94,6 +106,17 @@ function FeedDetailSheet({
 }) {
   const color = CATEGORY_COLORS[item.category] ?? '#8E8E93';
 
+  function openMaps() {
+    if (!item.location) return;
+    const encoded = encodeURIComponent(item.location);
+    const url = Platform.OS === 'ios'
+      ? `maps:0,0?q=${encoded}`
+      : `geo:0,0?q=${encoded}`;
+    Linking.openURL(url).catch(() =>
+      Linking.openURL(`https://maps.google.com/?q=${encoded}`)
+    );
+  }
+
   return (
     <Modal animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={styles.sheetContainer}>
@@ -142,8 +165,14 @@ function FeedDetailSheet({
           )}
         </ScrollView>
 
-        {/* Save button */}
+        {/* Footer: Maps + Save buttons */}
         <View style={styles.sheetFooter}>
+          {item.location && (
+            <TouchableOpacity style={styles.sheetMapsBtn} onPress={openMaps} activeOpacity={0.75}>
+              <FontAwesome name="map-o" size={16} color="#2C7A3A" />
+              <Text style={styles.sheetMapsBtnText}>Open in Maps</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[styles.sheetSaveBtn, saved && styles.sheetSaveBtnSaved]}
             onPress={saved ? undefined : onSave}
@@ -309,4 +338,6 @@ const styles = StyleSheet.create({
   sheetSaveBtn: { backgroundColor: '#2C7A3A', borderRadius: 12, paddingVertical: 15, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   sheetSaveBtnSaved: { backgroundColor: '#5A9E68' },
   sheetSaveBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  sheetMapsBtn: { borderWidth: 1.5, borderColor: '#2C7A3A', borderRadius: 12, paddingVertical: 13, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 10 },
+  sheetMapsBtnText: { fontSize: 16, fontWeight: '600', color: '#2C7A3A' },
 });

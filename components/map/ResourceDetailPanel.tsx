@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Linking, ActivityIndicator, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Resource } from '@/constants/types';
@@ -49,6 +49,17 @@ export function ResourceDetailPanel({ resource, onClose }: Props) {
     };
   }, [resource]);
 
+  function openMaps() {
+    if (!resource.address) return;
+    const encoded = encodeURIComponent(resource.address);
+    const url = Platform.OS === 'ios'
+      ? `maps:0,0?q=${encoded}`
+      : `geo:0,0?q=${encoded}`;
+    Linking.openURL(url).catch(() =>
+      Linking.openURL(`https://maps.google.com/?q=${encoded}`)
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={[styles.colorBar, { backgroundColor: accentColor }]} />
@@ -79,6 +90,13 @@ export function ResourceDetailPanel({ resource, onClose }: Props) {
           <TouchableOpacity style={styles.row} onPress={() => Linking.openURL(`tel:${resource.phone}`)}>
             <FontAwesome name="phone" size={14} color="#2C7A3A" style={styles.icon} />
             <Text style={[styles.detail, styles.link]}>{resource.phone}</Text>
+          </TouchableOpacity>
+        )}
+
+        {resource.address && (
+          <TouchableOpacity style={styles.row} onPress={openMaps} activeOpacity={0.75}>
+            <FontAwesome name="map-o" size={13} color="#2C7A3A" style={styles.icon} />
+            <Text style={[styles.detail, styles.link]}>Open in Maps</Text>
           </TouchableOpacity>
         )}
 
