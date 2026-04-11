@@ -50,11 +50,16 @@ export default function CalendarScreen() {
 
   async function removeEvent(id: string) {
     const event = saved.find((e) => e.id === id);
-    await Promise.all([
-      event?.notificationId ? cancelEventReminder(event.notificationId) : Promise.resolve(),
-      event?.nativeCalendarEventId ? removeFromNativeCalendar(event.nativeCalendarEventId) : Promise.resolve(),
-    ]);
-    removeEventFromStore(id);
+    try {
+      await Promise.all([
+        event?.notificationId ? cancelEventReminder(event.notificationId) : Promise.resolve(),
+        event?.nativeCalendarEventId ? removeFromNativeCalendar(event.nativeCalendarEventId) : Promise.resolve(),
+      ]);
+    } catch (e) {
+      console.warn('Remove event cleanup failed:', e);
+    } finally {
+      removeEventFromStore(id);
+    }
   }
 
   return (

@@ -2,6 +2,8 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-nati
 import { FeedItemSchema } from '@/services/apiTypes';
 import { useCalendarStore } from '@/store/calendarStore';
 import { CalendarEvent } from '@/constants/types';
+import { scheduleEventReminder } from '@/services/notifications';
+import { addToNativeCalendar } from '@/services/nativeCalendar';
 
 export interface Message {
   id: string;
@@ -15,20 +17,32 @@ interface Props {
   message: Message;
 }
 
+function toCalendarEvent(item: FeedItemSchema): CalendarEvent {
+  return {
+    id: item.id,
+    title: item.title,
+    location: item.location,
+    startTime: item.start_time,
+    category: item.category as CalendarEvent['category'],
+    resourceId: item.resource_id,
+  };
+}
+
 function MiniEventCard({ item }: { item: FeedItemSchema }) {
   const saveEvent = useCalendarStore((s) => s.saveEvent);
   const isSaved = useCalendarStore((s) => s.isSaved(item.id));
 
-  function handleSave() {
-    const event: CalendarEvent = {
-      id: item.id,
-      title: item.title,
-      location: item.location,
-      startTime: item.start_time,
-      category: item.category as CalendarEvent['category'],
-      resourceId: item.resource_id,
-    };
-    saveEvent(event);
+  async function handleSave(item: FeedItemSchema) {
+    try {
+      const event = toCalendarEvent(item);
+      const [notificationId, nativeCalendarEventId] = await Promise.all([
+        scheduleEventReminder(event.id, event.title, event.startTime),
+        addToNativeCalendar(event),
+      ]);
+      saveEvent({ ...event, notificationId: notificationId ?? undefined, nativeCalendarEventId: nativeCalendarEventId ?? undefined });
+    } catch (e) {
+      console.warn('MiniEventCard save failed:', e);
+    }
   }
 
   const dateLabel = item.start_time
@@ -46,7 +60,7 @@ function MiniEventCard({ item }: { item: FeedItemSchema }) {
       {dateLabel ? <Text style={cardStyles.date}>{dateLabel}</Text> : null}
       <TouchableOpacity
         style={[cardStyles.saveBtn, isSaved && cardStyles.saveBtnSaved]}
-        onPress={handleSave}
+        onPress={() => handleSave(item)}
         disabled={isSaved}
         accessibilityLabel={isSaved ? `${item.title} saved` : `Save ${item.title}`}
         accessibilityRole="button"
