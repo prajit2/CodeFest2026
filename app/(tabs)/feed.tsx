@@ -210,10 +210,11 @@ export default function FeedScreen() {
   const savedEvents = useCalendarStore((s) => s.savedEvents);
   const savedIds = useMemo(() => new Set(savedEvents.map((e) => e.id)), [savedEvents]);
 
-  const needs = [
-    substanceSupport ? 'substance' : null,
-    mentalHealthSupport ? 'mental_health' : null,
-  ].filter(Boolean).join(',') || undefined;
+  // Priority categories based on user needs — used for sorting, not filtering
+  const priorityCategories = new Set([
+    ...(substanceSupport ? ['support_group', 'event'] : []),
+    ...(mentalHealthSupport ? ['mental_health', 'clinic', 'clinic_popup'] : []),
+  ]);
 
   async function handleSave(item: FeedItemSchema) {
     try {
@@ -235,7 +236,7 @@ export default function FeedScreen() {
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const data = await api.feed.get(isStudent ? university : undefined, needs);
+      const data = await api.feed.get(isStudent ? university : undefined);
       setItems(data);
     } catch (e) {
       console.warn('Feed load failed:', e);
@@ -243,7 +244,7 @@ export default function FeedScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isStudent, university, needs]);
+  }, [isStudent, university]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -256,11 +257,23 @@ export default function FeedScreen() {
     Campus: [],
   };
 
-  const filteredItems = activeFilter === 'All'
-    ? items
-    : activeFilter === 'Campus'
-      ? items.filter(i => i.university === university)
-      : items.filter(i => (FILTER_CATEGORIES[activeFilter] ?? []).includes(i.category));
+  const filteredItems = (() => {
+    let result =
+      activeFilter === 'All'
+        ? items
+        : activeFilter === 'Campus'
+          ? items.filter(i => i.university === university)
+          : items.filter(i => (FILTER_CATEGORIES[activeFilter] ?? []).includes(i.category));
+
+    // Boost priority categories to the top on "All" view
+    if (activeFilter === 'All' && priorityCategories.size > 0) {
+      result = [
+        ...result.filter(i => priorityCategories.has(i.category)),
+        ...result.filter(i => !priorityCategories.has(i.category)),
+      ];
+    }
+    return result;
+  })();
 
   if (loading) {
     return <View style={styles.centered}><ActivityIndicator size="large" color="#2C7A3A" /></View>;
