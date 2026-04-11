@@ -149,9 +149,10 @@ export default function MapScreen() {
               <Circle
                 key={`crime-${i}`}
                 center={{ latitude: p.latitude, longitude: p.longitude }}
-                radius={300}
+                radius={120}
                 strokeWidth={0}
-                fillColor={`rgba(244,67,54,${Math.min(p.weight * 0.6, 0.55)})`}
+                strokeColor="transparent"
+                fillColor={`rgba(220,30,30,${Math.min(p.weight * 0.7, 0.6)})`}
               />
             ))
         }
