@@ -15,7 +15,8 @@ app = FastAPI(title="RockyAI API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # TODO: restrict to app domain before production
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, Depends
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from database import get_db
 from schemas import FeedItemSchema
 from models import Event, Resource
@@ -36,7 +36,7 @@ def _resource_to_feed(r: Resource) -> FeedItemSchema:
         description=r.description,
         university=None,
         location=r.address,
-        start_time=datetime.utcnow().isoformat() + "Z",
+        start_time=datetime.now(timezone.utc).isoformat() + "Z",
         category=cat,
         resource_id=r.id,
     )
@@ -46,13 +46,15 @@ def _resource_to_feed(r: Resource) -> FeedItemSchema:
 def get_feed(
     university: Optional[str] = Query(None),
     needs: Optional[str] = Query(None),  # comma-separated: food,mental_health,substance
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
     """
     Personalized feed. University students see their campus events first.
     needs param filters by content type (food, mental_health, substance).
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     events = [_event_to_feed(e) for e in db.query(Event).filter(Event.start_time >= now).all()]
     resources = [_resource_to_feed(r) for r in db.query(Resource).filter(Resource.is_active == True).all()]
     items = events + resources
@@ -68,4 +70,4 @@ def get_feed(
         other = [i for i in items if i.university != university]
         items = campus + other
 
-    return items
+    return items[offset : offset + limit]

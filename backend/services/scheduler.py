@@ -1,18 +1,18 @@
 """
 APScheduler jobs — ingests live data from OpenDataPhilly, SEPTA GTFS, and university scrapers.
 """
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 import logging
 
 logger = logging.getLogger(__name__)
-scheduler = AsyncIOScheduler()
+scheduler = BackgroundScheduler()
 
 
-async def ingest_open_data_philly():
+def ingest_open_data_philly():
     """Pull food banks, shelters, clinics from OpenDataPhilly ArcGIS REST API. No API key needed."""
     import httpx
     import hashlib
-    from datetime import datetime
+    from datetime import datetime, timezone
     from database import SessionLocal
     from models import Resource
 
@@ -59,10 +59,13 @@ async def ingest_open_data_philly():
     db = SessionLocal()
     total = 0
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        existing_ids = {r.id for r in db.query(Resource.id).all()}
+        seen_ids = set()
+
+        with httpx.Client(timeout=30.0) as client:
             for source in SOURCES:
                 try:
-                    resp = await client.get(source["url"], params=PARAMS)
+                    resp = client.get(source["url"], params=PARAMS)
                     resp.raise_for_status()
                     data = resp.json()
                 except httpx.HTTPError as e:
@@ -88,8 +91,9 @@ async def ingest_open_data_philly():
                     address = attrs.get(source["address_field"]) or ""
                     phone = attrs.get(source["phone_field"]) if source["phone_field"] else None
 
-                    existing = db.query(Resource).filter(Resource.id == rid).first()
-                    if existing:
+                    seen_ids.add(rid)
+                    if rid in existing_ids:
+                        existing = db.query(Resource).filter(Resource.id == rid).first()
                         existing.name = name
                         existing.category = category_str
                         existing.address = address
@@ -97,16 +101,21 @@ async def ingest_open_data_philly():
                         existing.longitude = lon
                         existing.phone = phone
                         existing.is_active = True
-                        existing.updated_at = datetime.utcnow()
+                        existing.updated_at = datetime.now(timezone.utc)
                     else:
                         db.add(Resource(
                             id=rid, name=name, category=category_str,
                             address=address, latitude=lat, longitude=lon,
                             phone=phone, is_active=True,
-                            updated_at=datetime.utcnow(),
+                            updated_at=datetime.now(timezone.utc),
                         ))
+                        existing_ids.add(rid)
                     total += 1
 
+        if seen_ids:
+            db.query(Resource).filter(Resource.id.notin_(seen_ids)).update(
+                {"is_active": False}, synchronize_session=False
+            )
         db.commit()
         logger.info(f"[scheduler] ingest_open_data_philly — upserted {total} resources")
     except Exception as e:
@@ -116,11 +125,11 @@ async def ingest_open_data_philly():
         db.close()
 
 
-async def ingest_crime_data():
+def ingest_crime_data():
     """Nightly rolling 90-day crime incidents from OpenDataPhilly, aggregated into ~400m grid cells."""
     import httpx
     from collections import defaultdict
-    from datetime import datetime
+    from datetime import datetime, timezone
     from database import SessionLocal
     from models import CrimeCell
 
@@ -134,8 +143,8 @@ async def ingest_crime_data():
 
     logger.info("[scheduler] ingest_crime_data — fetching")
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.get(CARTO_URL)
+        with httpx.Client(timeout=60.0) as client:
+            resp = client.get(CARTO_URL)
             resp.raise_for_status()
             data = resp.json()
     except httpx.HTTPError as e:
@@ -168,7 +177,7 @@ async def ingest_crime_data():
                 longitude=cell_lon,
                 weight=weight,
                 incident_count=count,
-                updated_at=datetime.utcnow(),
+                updated_at=datetime.now(timezone.utc),
             ))
         db.commit()
         logger.info(f"[scheduler] ingest_crime_data — inserted {len(cell_counts)} cells from {sum(cell_counts.values())} incidents")
@@ -179,13 +188,13 @@ async def ingest_crime_data():
         db.close()
 
 
-async def ingest_septa_stops():
+def ingest_septa_stops():
     """Weekly download of SEPTA GTFS stops.txt, upserted into septa_stops table."""
     import io
     import zipfile
     import csv
     import httpx
-    from datetime import datetime
+    from datetime import datetime, timezone
     from database import SessionLocal
     from models import SeptaStop
 
@@ -193,8 +202,8 @@ async def ingest_septa_stops():
 
     logger.info("[scheduler] ingest_septa_stops — downloading GTFS")
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.get(GTFS_URL)
+        with httpx.Client(timeout=60.0) as client:
+            resp = client.get(GTFS_URL)
             resp.raise_for_status()
     except httpx.HTTPError as e:
         logger.error(f"[scheduler] ingest_septa_stops — download failed: {e}")
@@ -222,7 +231,7 @@ async def ingest_septa_stops():
                         existing.name = name
                         existing.latitude = lat
                         existing.longitude = lon
-                        existing.updated_at = datetime.utcnow()
+                        existing.updated_at = datetime.now(timezone.utc)
                     else:
                         db.add(SeptaStop(
                             id=stop_id,
@@ -230,7 +239,7 @@ async def ingest_septa_stops():
                             latitude=lat,
                             longitude=lon,
                             stop_type="bus",
-                            updated_at=datetime.utcnow(),
+                            updated_at=datetime.now(timezone.utc),
                         ))
                     upserted += 1
 
@@ -243,7 +252,7 @@ async def ingest_septa_stops():
         db.close()
 
 
-async def scrape_university_events():
+def scrape_university_events():
     """
     Scrape free food events from university calendars every 6 hours.
     Currently implements Drexel; others (Temple, UPenn, CCP, SJU, LaSalle) are stubs.
@@ -251,16 +260,16 @@ async def scrape_university_events():
     import hashlib
     import httpx
     from bs4 import BeautifulSoup
-    from datetime import datetime
+    from datetime import datetime, timezone
     from database import SessionLocal
     from models import Event
 
     scraped = []
 
-    async def scrape_drexel(client: httpx.AsyncClient):
+    def scrape_drexel(client: httpx.Client):
         url = "https://drexel.edu/studentlife/events/"
         try:
-            resp = await client.get(url, timeout=15.0, follow_redirects=True)
+            resp = client.get(url, timeout=15.0, follow_redirects=True)
             resp.raise_for_status()
         except httpx.HTTPError as e:
             logger.warning(f"[scraper] Drexel fetch failed: {e}")
@@ -299,8 +308,8 @@ async def scrape_university_events():
             })
         return events
 
-    async with httpx.AsyncClient(headers={"User-Agent": "RockyAI/1.0 (Community Resource App)"}) as client:
-        scraped += await scrape_drexel(client)
+    with httpx.Client(headers={"User-Agent": "RockyAI/1.0 (Community Resource App)"}) as client:
+        scraped += scrape_drexel(client)
         # TODO: add scrape_temple, scrape_upenn, scrape_ccp, scrape_sju, scrape_lasalle
 
     if not scraped:
@@ -309,7 +318,7 @@ async def scrape_university_events():
 
     db = SessionLocal()
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         upserted = 0
         for ev in scraped:
             existing = db.query(Event).filter(Event.id == ev["id"]).first()

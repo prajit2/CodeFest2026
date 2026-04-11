@@ -5,16 +5,9 @@ import math
 from database import get_db
 from schemas import ResourceSchema
 from models import Resource
+from utils import distance_km
 
 router = APIRouter(prefix="/resources", tags=["resources"])
-
-
-def _distance_km(lat1, lon1, lat2, lon2):
-    R = 6371
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 def _to_schema(r: Resource) -> ResourceSchema:
@@ -59,9 +52,15 @@ def resources_nearby(
     query = db.query(Resource).filter(Resource.is_active == True)
     if category:
         query = query.filter(Resource.category == category)
+    lat_delta = radius_km / 111.0
+    lon_delta = radius_km / (111.0 * math.cos(math.radians(lat)))
+    query = query.filter(
+        Resource.latitude.between(lat - lat_delta, lat + lat_delta),
+        Resource.longitude.between(lon - lon_delta, lon + lon_delta),
+    )
     all_resources = query.all()
-    nearby = [r for r in all_resources if _distance_km(lat, lon, r.latitude, r.longitude) <= radius_km]
-    nearby.sort(key=lambda r: _distance_km(lat, lon, r.latitude, r.longitude))
+    nearby = [r for r in all_resources if distance_km(lat, lon, r.latitude, r.longitude) <= radius_km]
+    nearby.sort(key=lambda r: distance_km(lat, lon, r.latitude, r.longitude))
     return [_to_schema(r) for r in nearby]
 
 
