@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import math
 from database import get_db
 from schemas import ResourceSchema
-from services.stub_data import STUB_RESOURCES
+from models import Resource
 
 router = APIRouter(prefix="/resources", tags=["resources"])
 
@@ -17,23 +17,30 @@ def _distance_km(lat1, lon1, lat2, lon2):
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def _get_resources(db: Session):
-    # TODO Week 3: swap stub for real DB query
-    # return db.query(Resource).filter(Resource.is_active == True).all()
-    return STUB_RESOURCES
+def _to_schema(r: Resource) -> ResourceSchema:
+    return ResourceSchema(
+        id=r.id,
+        name=r.name,
+        category=r.category.value if hasattr(r.category, "value") else r.category,
+        address=r.address or "",
+        latitude=r.latitude,
+        longitude=r.longitude,
+        phone=r.phone,
+        hours=r.hours,
+        description=r.description,
+        nearest_septa_stops=None,
+    )
 
 
 @router.get("", response_model=List[ResourceSchema])
 def list_resources(
     category: Optional[str] = Query(None),
-    lat: Optional[float] = Query(None),
-    lon: Optional[float] = Query(None),
     db: Session = Depends(get_db),
 ):
-    resources = _get_resources(db)
+    query = db.query(Resource).filter(Resource.is_active == True)
     if category:
-        resources = [r for r in resources if r["category"] == category]
-    return resources
+        query = query.filter(Resource.category == category)
+    return [_to_schema(r) for r in query.all()]
 
 
 @router.get("/categories")
@@ -49,19 +56,18 @@ def resources_nearby(
     category: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
-    resources = _get_resources(db)
+    query = db.query(Resource).filter(Resource.is_active == True)
     if category:
-        resources = [r for r in resources if r["category"] == category]
-    nearby = [r for r in resources if _distance_km(lat, lon, r["latitude"], r["longitude"]) <= radius_km]
-    nearby.sort(key=lambda r: _distance_km(lat, lon, r["latitude"], r["longitude"]))
-    return nearby
+        query = query.filter(Resource.category == category)
+    all_resources = query.all()
+    nearby = [r for r in all_resources if _distance_km(lat, lon, r.latitude, r.longitude) <= radius_km]
+    nearby.sort(key=lambda r: _distance_km(lat, lon, r.latitude, r.longitude))
+    return [_to_schema(r) for r in nearby]
 
 
 @router.get("/{resource_id}", response_model=ResourceSchema)
 def get_resource(resource_id: str, db: Session = Depends(get_db)):
-    resources = _get_resources(db)
-    resource = next((r for r in resources if r["id"] == resource_id), None)
-    if not resource:
-        from fastapi import HTTPException
+    r = db.query(Resource).filter(Resource.id == resource_id, Resource.is_active == True).first()
+    if not r:
         raise HTTPException(status_code=404, detail="Resource not found")
-    return resource
+    return _to_schema(r)
