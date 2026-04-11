@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, ScrollView, Pressable } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, ScrollView, Pressable, Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { api } from '@/services/api';
 import { FeedItemSchema } from '@/services/apiTypes';
 import { useUserStore } from '@/store/userStore';
+import { FeedFilterBar } from '@/components/feed/FeedFilterBar';
 import { useCalendarStore } from '@/store/calendarStore';
 import { scheduleEventReminder } from '@/services/notifications';
 import { addToNativeCalendar } from '@/services/nativeCalendar';
@@ -171,10 +172,18 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<FeedItemSchema | null>(null);
+  const [activeFilter, setActiveFilter] = useState('All');
   const university = useUserStore((s) => s.university);
   const isStudent = useUserStore((s) => s.isStudent);
+  const substanceSupport = useUserStore((s) => s.substanceSupport);
+  const mentalHealthSupport = useUserStore((s) => s.mentalHealthSupport);
   const saveEvent = useCalendarStore((s) => s.saveEvent);
   const savedIds = useCalendarStore((s) => new Set(s.savedEvents.map((e) => e.id)));
+
+  const needs = [
+    substanceSupport ? 'substance' : null,
+    mentalHealthSupport ? 'mental_health' : null,
+  ].filter(Boolean).join(',') || undefined;
 
   async function handleSave(item: FeedItemSchema) {
     try {
@@ -196,7 +205,7 @@ export default function FeedScreen() {
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const data = await api.feed.get(isStudent ? university : undefined);
+      const data = await api.feed.get(isStudent ? university : undefined, needs);
       setItems(data);
     } catch (e) {
       console.warn('Feed load failed:', e);
@@ -204,9 +213,24 @@ export default function FeedScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isStudent, university]);
+  }, [isStudent, university, needs]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const FILTER_CATEGORIES: Record<string, string[]> = {
+    Food: ['free_food', 'food_bank'],
+    Shelters: ['shelter'],
+    Health: ['clinic_popup', 'clinic'],
+    Recovery: ['support_group', 'mental_health'],
+    'Support Groups': ['support_group'],
+    Campus: [],
+  };
+
+  const filteredItems = activeFilter === 'All'
+    ? items
+    : activeFilter === 'Campus'
+      ? items.filter(i => i.university === university)
+      : items.filter(i => (FILTER_CATEGORIES[activeFilter] ?? []).includes(i.category));
 
   if (loading) {
     return <View style={styles.centered}><ActivityIndicator size="large" color="#2C7A3A" /></View>;
@@ -214,13 +238,14 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.container}>
+      <FeedFilterBar active={activeFilter} onSelect={setActiveFilter} showCampus={!!isStudent} />
       {isStudent && university && (
         <View style={styles.banner}>
           <Text style={styles.bannerText}>Showing {university} events first</Text>
         </View>
       )}
       <FlatList
-        data={items}
+        data={filteredItems}
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => (
           <FeedCard

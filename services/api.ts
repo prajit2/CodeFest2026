@@ -2,10 +2,13 @@
  * API client — all three devs import from here.
  * Change BASE_URL to your deployed backend when ready.
  */
+import { Platform } from 'react-native';
 import { ResourceSchema, EventSchema, FeedItemSchema, CrimePointSchema, SeptaArrivalSchema } from './apiTypes';
 
 const BASE_URL = __DEV__
-  ? 'http://localhost:8000'
+  ? Platform.OS === 'android'
+    ? 'http://10.0.2.2:8000'
+    : 'http://localhost:8000'
   : 'https://your-deployed-api.com'; // TODO: update when deployed
 
 async function get<T>(path: string, params?: Record<string, string>): Promise<T> {
@@ -40,8 +43,11 @@ export const api = {
   },
 
   feed: {
-    get: (university?: string) =>
-      get<FeedItemSchema[]>('/feed', university ? { university } : undefined),
+    get: (university?: string, needs?: string) =>
+      get<FeedItemSchema[]>('/feed', {
+        ...(university ? { university } : {}),
+        ...(needs ? { needs } : {}),
+      }),
   },
 
   transit: {

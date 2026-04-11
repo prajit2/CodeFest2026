@@ -2,23 +2,26 @@
 // Filter chips at top of Feed screen: All, Food, Shelters, Health, Recovery, Campus
 
 import { ScrollView, Pressable, Text, StyleSheet, View } from 'react-native'
-import { useState } from 'react'
-const FILTERS = ['All', 'Food', 'Shelters', 'Health', 'Recovery', 'Campus', 'Support Groups']
 
-// TODO: Dev 3 — active filter drives what feed items are shown
-// TODO: Dev 3 — hide 'Campus' filter if user is not a student (check useOnboardingStore)
+const ALL_FILTERS = ['All', 'Food', 'Shelters', 'Health', 'Recovery', 'Support Groups', 'Campus']
 
-export function FeedFilterBar() {
-  const [active, setActive] = useState('All')
+interface FeedFilterBarProps {
+  active: string
+  onSelect: (filter: string) => void
+  showCampus: boolean
+}
+
+export function FeedFilterBar({ active, onSelect, showCampus }: FeedFilterBarProps) {
+  const filters = showCampus ? ALL_FILTERS : ALL_FILTERS.filter(f => f !== 'Campus')
 
   return (
     <View style={styles.wrapper}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {FILTERS.map((f) => (
+        {filters.map((f) => (
           <Pressable
             key={f}
             style={[styles.chip, active === f && styles.chipActive]}
-            onPress={() => setActive(f)}
+            onPress={() => onSelect(f)}
           >
             <Text style={[styles.label, active === f && styles.labelActive]}>{f}</Text>
           </Pressable>
@@ -29,8 +32,8 @@ export function FeedFilterBar() {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { paddingTop: 56, borderBottomWidth: 1, borderBottomColor: '#E5E5EA', backgroundColor: '#F2F2F7' },
-  scroll: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
+  wrapper: { borderBottomWidth: 1, borderBottomColor: '#E5E5EA', backgroundColor: '#F2F2F7' },
+  scroll: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
   chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#E5E5EA', backgroundColor: '#FFFFFF' },
   chipActive: { backgroundColor: '#E8F5E9', borderColor: '#2C7A3A' },
   label: { color: '#8E8E93', fontSize: 13, fontWeight: '600' },

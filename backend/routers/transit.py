@@ -3,10 +3,14 @@ from sqlalchemy.orm import Session
 from typing import List
 import math
 import httpx
+import time
 from database import get_db
 from schemas import SeptaStopSchema, SeptaArrivalSchema
 from models import SeptaStop
 from utils import distance_km
+
+_arrivals_cache: dict[str, tuple[float, list]] = {}
+CACHE_TTL = 60  # seconds
 
 router = APIRouter(prefix="/transit", tags=["transit"])
 
@@ -36,6 +40,9 @@ def stops_nearby(
 @router.get("/arrivals/{stop_id}", response_model=List[SeptaArrivalSchema])
 async def arrivals(stop_id: str = Path(...)):
     """Live SEPTA arrivals proxy."""
+    cached = _arrivals_cache.get(stop_id)
+    if cached and (time.time() - cached[0]) < CACHE_TTL:
+        return cached[1]
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(SEPTA_ARRIVALS_URL, params={"stop_id": stop_id, "count": 5})
@@ -61,4 +68,5 @@ async def arrivals(stop_id: str = Path(...)):
                     ))
                 except (ValueError, TypeError):
                     continue
+    _arrivals_cache[stop_id] = (time.time(), results)
     return results
