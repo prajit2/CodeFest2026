@@ -1,7 +1,10 @@
-import { StyleSheet, View, Text, TouchableOpacity, Linking } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
+import { useState, useEffect } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Resource } from '@/constants/types';
 import { MARKER_COLORS, MARKER_LABELS } from '@/constants/mapColors';
+import { api } from '@/services/api';
+import { SeptaArrivalSchema } from '@/services/apiTypes';
 
 interface Props {
   resource: Resource;
@@ -10,6 +13,41 @@ interface Props {
 
 export function ResourceDetailPanel({ resource, onClose }: Props) {
   const accentColor = MARKER_COLORS[resource.category];
+
+  const [arrivalsMap, setArrivalsMap] = useState<Record<string, SeptaArrivalSchema[]>>({});
+  const [arrivalsLoading, setArrivalsLoading] = useState(false);
+
+  useEffect(() => {
+    const stops = resource.nearestSeptaStops;
+    if (!stops || stops.length === 0) {
+      setArrivalsMap({});
+      return;
+    }
+
+    let cancelled = false;
+    setArrivalsLoading(true);
+    setArrivalsMap({});
+
+    Promise.all(
+      stops.map((stop) =>
+        api.transit.arrivals(stop.id)
+          .then((arrivals) => ({ stopId: stop.id, arrivals }))
+          .catch(() => ({ stopId: stop.id, arrivals: [] as SeptaArrivalSchema[] }))
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const map: Record<string, SeptaArrivalSchema[]> = {};
+      results.forEach(({ stopId, arrivals }) => {
+        map[stopId] = arrivals;
+      });
+      setArrivalsMap(map);
+      setArrivalsLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resource]);
 
   return (
     <View style={styles.container}>
@@ -47,11 +85,27 @@ export function ResourceDetailPanel({ resource, onClose }: Props) {
         {resource.nearestSeptaStops && resource.nearestSeptaStops.length > 0 && (
           <View style={styles.septaBlock}>
             <Text style={styles.septaLabel}>Nearest SEPTA</Text>
-            {resource.nearestSeptaStops.map((stop) => (
-              <Text key={stop.id} style={styles.septaStop}>
-                {stop.name} — {stop.routes.join(', ')}
-              </Text>
-            ))}
+            {arrivalsLoading ? (
+              <ActivityIndicator size="small" color="#8E8E93" style={styles.loadingIndicator} />
+            ) : (
+              resource.nearestSeptaStops.map((stop) => {
+                const arrivals = arrivalsMap[stop.id] ?? [];
+                return (
+                  <View key={stop.id} style={styles.stopBlock}>
+                    <Text style={styles.septaStop}>{stop.name}</Text>
+                    {arrivals.length === 0 ? (
+                      <Text style={styles.arrivalNone}>No arrivals data</Text>
+                    ) : (
+                      arrivals.slice(0, 3).map((arrival, index) => (
+                        <Text key={index} style={styles.arrivalRow}>
+                          {arrival.route} → {arrival.destination}: {arrival.minutes_away} min
+                        </Text>
+                      ))
+                    )}
+                  </View>
+                );
+              })
+            )}
           </View>
         )}
       </View>
@@ -100,5 +154,9 @@ const styles = StyleSheet.create({
   link: { color: '#2C7A3A', fontWeight: '500' },
   septaBlock: { marginTop: 4 },
   septaLabel: { fontSize: 12, fontWeight: '600', color: '#8E8E93', marginBottom: 4 },
-  septaStop: { fontSize: 13, color: '#3C3C43' },
+  septaStop: { fontSize: 13, fontWeight: '600', color: '#3C3C43' },
+  stopBlock: { marginBottom: 8 },
+  arrivalRow: { fontSize: 13, color: '#3C3C43', marginTop: 2 },
+  arrivalNone: { fontSize: 13, color: '#8E8E93', fontStyle: 'italic', marginTop: 2 },
+  loadingIndicator: { alignSelf: 'flex-start', marginTop: 4 },
 });

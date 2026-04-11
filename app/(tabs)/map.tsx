@@ -8,6 +8,8 @@ import { LayerFilterPanel } from '@/components/map/LayerFilterPanel';
 import { ResourceDetailPanel } from '@/components/map/ResourceDetailPanel';
 import { Resource, ResourceCategory } from '@/constants/types';
 import { MARKER_COLORS } from '@/constants/mapColors';
+import { api } from '@/services/api';
+import { CrimePointSchema, ResourceSchema } from '@/services/apiTypes';
 
 // Philly center
 const PHILLY_REGION: Region = {
@@ -17,80 +19,26 @@ const PHILLY_REGION: Region = {
   longitudeDelta: 0.08,
 };
 
-// Stub resources — swap out for real /resources API in Week 3
-const STUB_RESOURCES: Resource[] = [
-  {
-    id: '1',
-    name: 'Broad Street Pantry',
-    category: 'food_bank',
-    address: '1234 Broad St, Philadelphia, PA',
-    latitude: 39.948,
-    longitude: -75.166,
-    phone: '215-555-0101',
-    hours: 'Mon–Fri 9am–5pm',
-  },
-  {
-    id: '2',
-    name: 'Project HOME Shelter',
-    category: 'shelter',
-    address: '1415 N Broad St, Philadelphia, PA',
-    latitude: 39.973,
-    longitude: -75.162,
-    phone: '215-555-0202',
-    hours: '24/7',
-  },
-  {
-    id: '3',
-    name: 'Health Center 4',
-    category: 'clinic',
-    address: '4400 Haverford Ave, Philadelphia, PA',
-    latitude: 39.972,
-    longitude: -75.19,
-    phone: '215-555-0303',
-    hours: 'Mon–Sat 8am–6pm',
-  },
-  {
-    id: '4',
-    name: 'Drexel Counseling Center',
-    category: 'campus_resource',
-    address: '3201 Arch St, Philadelphia, PA',
-    latitude: 39.9563,
-    longitude: -75.1874,
-    phone: '215-895-1415',
-    hours: 'Mon–Fri 9am–5pm',
-  },
-  {
-    id: '5',
-    name: 'Broad & Pattison SEPTA',
-    category: 'septa',
-    address: 'Broad St & Pattison Ave',
-    latitude: 39.9032,
-    longitude: -75.1677,
-  },
-  {
-    id: '6',
-    name: 'Council for Recovery',
-    category: 'support_group',
-    address: '8 Penn Center, Philadelphia, PA',
-    latitude: 39.9534,
-    longitude: -75.1674,
-    phone: '215-555-0606',
-    hours: 'See schedule',
-  },
-];
-
-// Stub crime heatmap points — swap for /crime/heatmap in Week 3
-const STUB_CRIME_POINTS = [
-  { latitude: 39.988, longitude: -75.155, weight: 1 },
-  { latitude: 39.975, longitude: -75.14, weight: 0.8 },
-  { latitude: 39.962, longitude: -75.16, weight: 0.6 },
-  { latitude: 39.945, longitude: -75.175, weight: 0.7 },
-];
+function toResource(r: ResourceSchema): Resource {
+  return {
+    id: r.id,
+    name: r.name,
+    category: r.category as ResourceCategory,
+    address: r.address,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    phone: r.phone,
+    hours: r.hours,
+    nearestSeptaStops: r.nearest_septa_stops,
+  };
+}
 
 export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
   const [locationGranted, setLocationGranted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [crimePoints, setCrimePoints] = useState<CrimePointSchema[]>([]);
 
   const visibleCategories = useMapStore((s) => s.visibleCategories);
   const crimeOverlayVisible = useMapStore((s) => s.crimeOverlayVisible);
@@ -106,8 +54,23 @@ export default function MapScreen() {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       setLocationGranted(status === 'granted');
-      setLoading(false);
     })();
+  }, []);
+
+  // Fetch resources and crime heatmap from real API
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([api.resources.list(), api.crime.heatmap()])
+      .then(([rawResources, crimeData]) => {
+        setResources(rawResources.map(toResource));
+        setCrimePoints(crimeData);
+      })
+      .catch((err) => {
+        console.error('Map data fetch failed:', err);
+        setResources([]);
+        setCrimePoints([]);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   // React to chat-to-map dispatch (center camera)
@@ -122,13 +85,13 @@ export default function MapScreen() {
     }
   }, [centerLatitude, centerLongitude]);
 
-  const visibleResources = STUB_RESOURCES.filter((r) => {
+  const visibleResources = resources.filter((r) => {
     if (r.category === 'campus_resource' && !isStudent) return false;
     return visibleCategories[r.category as ResourceCategory];
   });
 
   const focusedResource = focusedResourceId
-    ? STUB_RESOURCES.find((r) => r.id === focusedResourceId) ?? null
+    ? resources.find((r) => r.id === focusedResourceId) ?? null
     : null;
 
   if (loading) {
@@ -160,7 +123,7 @@ export default function MapScreen() {
 
         {crimeOverlayVisible && (
           <Heatmap
-            points={STUB_CRIME_POINTS}
+            points={crimePoints}
             opacity={0.7}
             radius={40}
             gradient={{
