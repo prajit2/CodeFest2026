@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView, TouchableOpacity, Text, View, Platform } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, Text, View } from 'react-native';
 import { useMapStore } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
 import { ResourceCategory } from '@/constants/types';
@@ -19,24 +19,13 @@ export function LayerFilterPanel() {
   const crimeOverlayVisible = useMapStore((s) => s.crimeOverlayVisible);
   const toggleCategory = useMapStore((s) => s.toggleCategory);
   const toggleCrimeOverlay = useMapStore((s) => s.toggleCrimeOverlay);
-  const showAllCategories = useMapStore((s) => s.showAllCategories);
   const isStudent = useUserStore((s) => s.isStudent);
 
   const categories = isStudent ? CATEGORIES : CATEGORIES.filter((c) => c !== 'campus_resource');
-  const anyHidden = categories.some((c) => !visibleCategories[c]);
 
   return (
     <View style={styles.container}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {anyHidden && (
-          <TouchableOpacity
-            style={[styles.chip, { borderColor: '#1C1C1E', backgroundColor: '#1C1C1E' }]}
-            onPress={showAllCategories}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.chipTextActive}>Show All</Text>
-          </TouchableOpacity>
-        )}
         {categories.map((cat) => {
           const active = visibleCategories[cat];
           return (
@@ -52,17 +41,15 @@ export function LayerFilterPanel() {
             </TouchableOpacity>
           );
         })}
-        {Platform.OS === 'android' && (
-          <TouchableOpacity
-            style={[styles.chip, { borderColor: '#F44336' }, crimeOverlayVisible && { backgroundColor: '#F44336' }]}
-            onPress={toggleCrimeOverlay}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.chipText, crimeOverlayVisible && styles.chipTextActive]}>
-              Crime Overlay
-            </Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={[styles.chip, { borderColor: '#F44336' }, crimeOverlayVisible && { backgroundColor: '#F44336' }]}
+          onPress={toggleCrimeOverlay}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.chipText, crimeOverlayVisible && styles.chipTextActive]}>
+            Crime Overlay
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
