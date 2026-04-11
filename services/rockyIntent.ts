@@ -39,37 +39,37 @@ const INTENT_MAP: Array<{ keywords: string[]; category: ResourceCategory; respon
   {
     keywords: ['food', 'hungry', 'eat', 'meal', 'pantry', 'groceries', 'free food'],
     category: 'food_bank',
-    response: "Here are food banks and free meal sites near you.",
+    response: "Yo, I got youse — here are food banks and free meal jawns near you.",
   },
   {
     keywords: ['shelter', 'homeless', 'housing', 'sleep', 'place to stay', 'no home'],
     category: 'shelter',
-    response: "Here are shelters near you.",
+    response: "A-ite, pulling up shelters near you right now.",
   },
   {
     keywords: ['bathroom', 'restroom', 'toilet', 'hygiene', 'shower', 'clean up'],
     category: 'shelter',
-    response: "Here are shelters with hygiene facilities near you.",
+    response: "Ga head, here are shelters with hygiene facilities near you.",
   },
   {
     keywords: ['clinic', 'doctor', 'health', 'medical', 'sick', 'prescription', 'health center'],
     category: 'clinic',
-    response: "Here are health clinics near you.",
+    response: "No cap, your health matters — here are health clinics near you.",
   },
   {
     keywords: ['mental health', 'therapy', 'therapist', 'counseling', 'anxiety', 'depression', 'stress'],
     category: 'mental_health',
-    response: "Here are mental health services near you.",
+    response: "Yo, taking care of yourself is real — here are mental health jawns near you.",
   },
   {
     keywords: ['na meeting', 'aa meeting', 'narcotics', 'alcoholics', 'recovery', 'sober', 'addiction'],
     category: 'support_group',
-    response: "Here are support groups and recovery resources near you.",
+    response: "Respect for reaching out, boul — here are support groups and recovery resources near you.",
   },
   {
-    keywords: ['septa', 'bus', 'subway', 'train', 'transit', 'trolley', 'stop'],
+    keywords: ['septa', 'bus', 'subway', 'train', 'transit', 'trolley', 'stop', 'el', 'the el'],
     category: 'septa',
-    response: "Here are nearby SEPTA stops.",
+    response: "Youse tryna catch the EL or a bus? Here are SEPTA stops near you.",
   },
   {
     keywords: [
@@ -85,12 +85,12 @@ const INTENT_MAP: Array<{ keywords: string[]; category: ResourceCategory; respon
   {
     keywords: ['job', 'work', 'employment', 'career', 'resume', 'hire', 'hiring'],
     category: 'campus_resource',
-    response: "Here are workforce and career resources near you.",
+    response: "A-ite, let's get youse working — here are workforce and career resources near you.",
   },
   {
     keywords: ['wifi', 'internet', 'computer', 'laptop', 'library', 'charge my phone'],
     category: 'campus_resource',
-    response: "Here are places with free WiFi and computers near you.",
+    response: "Here are places with free WiFi and computers near you. Wawa's always got an outlet too jawn.",
   },
 ];
 
@@ -106,7 +106,7 @@ export function detectIntent(message: string, userContext?: UserContext): RockyI
   if (CRISIS_KEYWORDS.some((kw) => lower.includes(kw))) {
     return {
       type: 'crisis',
-      message: "I hear you. Here are immediate resources that can help:",
+      message: "Yo, I hear you — and I'm glad you said something. Here are immediate resources that can help:",
     };
   }
 
@@ -127,7 +127,7 @@ export function detectIntent(message: string, userContext?: UserContext): RockyI
         if (!userContext?.isStudent) {
           return {
             type: 'general',
-            response: "Campus resources are available for enrolled students. I can help you find food banks, health clinics, shelters, or transit instead — just ask!",
+            response: "Aye, campus jawns are for enrolled students. But I got youse — ask me about food banks, health clinics, shelters, or SEPTA instead!",
           };
         }
         // Students get a personalized response and map filtered to their school
@@ -162,20 +162,20 @@ export function detectIntent(message: string, userContext?: UserContext): RockyI
   // Smart general fallback
   const wordCount = message.trim().split(/\s+/).length;
   if (lower.includes('thank') || lower.includes('thx')) {
-    return { type: 'general', response: "You're welcome! Let me know if you need anything else." };
+    return { type: 'general', response: "No jawn! Holler if you need anything else." };
   }
-  if (['hi', 'hello', 'hey', 'sup'].some((kw) => lower.includes(kw))) {
-    return { type: 'general', response: "Hey! I'm Rocky. Ask me about free food, shelters, health clinics, transit, or support resources in Philly." };
+  if (['hi', 'hello', 'hey', 'sup', 'yo'].some((kw) => lower.includes(kw))) {
+    return { type: 'general', response: "Yo! I'm Rocky, your Philly jawn for resources. Ask me about free food, shelters, health clinics, SEPTA, or support groups around the city." };
   }
   if (lower.includes('?')) {
-    return { type: 'general', response: "I'm not sure about that, but I can help you find food, shelter, health clinics, transit, and support resources nearby. Try asking: 'Where can I get free food?' or 'Find a health clinic'." };
+    return { type: 'general', response: "Ionno about dat one, boul — but I can help you find food, shelter, health clinics, SEPTA, and support nearby. Try: 'Where can I get free food?' or 'Find a health clinic'." };
   }
   if (wordCount < 4) {
-    return { type: 'general', response: "I can help with food, shelter, health, transit, or support. What do you need?" };
+    return { type: 'general', response: "Ga head, what do you need? Food, shelter, health, transit, or support — I got youse." };
   }
 
   return {
     type: 'general',
-    response: "I can help you find food, shelter, health clinics, transit, and support in Philadelphia. What do you need?",
+    response: "Yo, I can help you find food, shelter, health clinics, SEPTA, and support all around Philly. What do you need?",
   };
 }

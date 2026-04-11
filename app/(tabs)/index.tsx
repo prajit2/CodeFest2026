@@ -18,7 +18,7 @@ import { api } from '@/services/api';
 const WELCOME: Message = {
   id: 'welcome',
   role: 'rocky',
-  text: "Hey, I'm Rocky! I can help you find free food, shelters, health clinics, transit, and support in Philadelphia. What do you need today?\n\nNote: I'm an organization tool, not a substitute for professional or medical advice.",
+  text: "Yo! I'm Rocky — your Philly jawn for finding resources around the city. I got youse covered on free food, shelters, health clinics, SEPTA stops, and support groups. What do you need?\n\nNote: I'm an organization tool, not a substitute for professional or medical advice.",
   timestamp: new Date(),
 };
 
@@ -59,7 +59,7 @@ export default function ChatScreen() {
         setTimeout(() => router.push('/(tabs)/map'), 600);
         break;
       case 'directions':
-        rockyText = `Let me find directions to ${intent.resourceName}. Opening the map.`;
+        rockyText = `A-ite, lemme pull up ${intent.resourceName} on the map jawn.`;
         mapDispatch({ type: 'CENTER_ON_LOCATION', latitude: 39.9526, longitude: -75.1652 });
         setTimeout(() => router.push('/(tabs)/map'), 600);
         break;
