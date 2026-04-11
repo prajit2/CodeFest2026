@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState, useCallback } from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { api } from '@/services/api';
 import { FeedItemSchema } from '@/services/apiTypes';
@@ -92,7 +93,7 @@ export default function FeedScreen() {
     });
   }
 
-  async function load(isRefresh = false) {
+  const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
       const data = await api.feed.get(isStudent ? university : undefined);
@@ -103,9 +104,9 @@ export default function FeedScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }
+  }, [isStudent, university]);
 
-  useEffect(() => { load(); }, []);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   if (loading) {
     return <View style={styles.centered}><ActivityIndicator size="large" color="#2C7A3A" /></View>;

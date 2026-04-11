@@ -2,6 +2,8 @@
  * API client — all three devs import from here.
  * Change BASE_URL to your deployed backend when ready.
  */
+import { ResourceSchema, EventSchema, FeedItemSchema, CrimePointSchema, SeptaArrivalSchema } from './apiTypes';
+
 const BASE_URL = __DEV__
   ? 'http://localhost:8000'
   : 'https://your-deployed-api.com'; // TODO: update when deployed
@@ -15,8 +17,6 @@ async function get<T>(path: string, params?: Record<string, string>): Promise<T>
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json();
 }
-
-import { ResourceSchema, EventSchema, FeedItemSchema, CrimePointSchema, SeptaArrivalSchema } from './apiTypes';
 
 export const api = {
   resources: {
