@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { MessageBubble, Message } from '@/components/chat/MessageBubble';
 import { QuickActionChips } from '@/components/chat/QuickActionChips';
 import { CrisisPanel } from '@/components/chat/CrisisPanel';
+import { RockyAvatar } from '@/components/chat/RockyAvatar';
 import { detectIntent } from '@/services/rockyIntent';
 import { useMapStore } from '@/store/mapStore';
 
@@ -111,7 +112,7 @@ export default function ChatScreen() {
       {/* Rocky header */}
       <View style={styles.header}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>🥊</Text>
+          <RockyAvatar size={44} />
         </View>
         <View>
           <Text style={styles.headerName}>Rocky</Text>
@@ -160,8 +161,7 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E5E5EA', gap: 12 },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 22 },
+  avatar: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   headerName: { fontSize: 16, fontWeight: '700', color: '#1C1C1E' },
   headerSub: { fontSize: 12, color: '#8E8E93' },
   messages: { paddingVertical: 12 },
