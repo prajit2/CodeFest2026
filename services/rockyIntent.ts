@@ -1,4 +1,19 @@
-import { MapDispatchAction, ResourceCategory } from '@/constants/types';
+import { MapDispatchAction, ResourceCategory, University } from '@/constants/types';
+
+export interface UserContext {
+  isStudent?: boolean;
+  university?: University;
+}
+
+const UNIVERSITY_LABELS: Record<University, string> = {
+  drexel: 'Drexel University',
+  temple: 'Temple University',
+  upenn: 'University of Pennsylvania',
+  ccp: 'Community College of Philadelphia',
+  saint_josephs: "Saint Joseph's University",
+  lasalle: 'La Salle University',
+  other: 'your campus',
+};
 
 export type RockyIntent =
   | { type: 'map_filter'; category: ResourceCategory; response: string; mapAction: MapDispatchAction }
@@ -57,7 +72,13 @@ const INTENT_MAP: Array<{ keywords: string[]; category: ResourceCategory; respon
     response: "Here are nearby SEPTA stops.",
   },
   {
-    keywords: ['campus', 'student', 'university', 'drexel', 'temple', 'penn', 'school'],
+    keywords: [
+      'campus', 'student', 'university', 'drexel', 'temple', 'penn', 'school',
+      'help office', 'advising', 'advisor', 'financial aid', 'tutoring',
+      'student center', 'dining hall', 'campus food', 'campus clinic',
+      'career center', 'writing center', 'counseling center', 'free food on campus',
+      'student resources', 'campus resources', 'student services',
+    ],
     category: 'campus_resource',
     response: "Here are campus resources near you.",
   },
@@ -78,7 +99,7 @@ const EVENTS_KEYWORDS = [
   'any events', 'events near', 'events today', 'events this week',
 ];
 
-export function detectIntent(message: string): RockyIntent {
+export function detectIntent(message: string, userContext?: UserContext): RockyIntent {
   const lower = message.toLowerCase();
 
   // Crisis check first — always highest priority
@@ -101,6 +122,26 @@ export function detectIntent(message: string): RockyIntent {
   // Map filter intents
   for (const intent of INTENT_MAP) {
     if (intent.keywords.some((kw) => lower.includes(kw))) {
+      if (intent.category === 'campus_resource') {
+        // Non-students get a helpful redirect instead of an empty map
+        if (!userContext?.isStudent) {
+          return {
+            type: 'general',
+            response: "Campus resources are available for enrolled students. I can help you find food banks, health clinics, shelters, or transit instead — just ask!",
+          };
+        }
+        // Students get a personalized response and map filtered to their school
+        const schoolName = userContext.university
+          ? UNIVERSITY_LABELS[userContext.university]
+          : 'your campus';
+        return {
+          type: 'map_filter',
+          category: 'campus_resource',
+          response: `Opening the map to ${schoolName} resources near you.`,
+          mapAction: { type: 'FILTER_CATEGORY', category: 'campus_resource' },
+        };
+      }
+
       return {
         type: 'map_filter',
         category: intent.category,
