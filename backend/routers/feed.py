@@ -22,7 +22,7 @@ def _event_to_feed(e: Event) -> FeedItemSchema:
         description=e.description,
         university=e.university,
         location=e.location,
-        start_time=e.start_time.isoformat() + "Z",
+        start_time=e.start_time.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         category=e.category,
         resource_id=e.resource_id,
     )
@@ -36,7 +36,7 @@ def _resource_to_feed(r: Resource) -> FeedItemSchema:
         description=r.description,
         university=None,
         location=r.address,
-        start_time=datetime.now(timezone.utc).isoformat() + "Z",
+        start_time=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         category=cat,
         resource_id=r.id,
     )
