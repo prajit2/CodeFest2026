@@ -1,8 +1,8 @@
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 import { create } from 'zustand';
 import { CalendarEvent } from '@/constants/types';
 
-const storage = new MMKV({ id: 'calendar-events' });
+const storage = createMMKV({ id: 'calendar-events' });
 
 function loadEvents(): CalendarEvent[] {
   const raw = storage.getString('events');

@@ -1,8 +1,8 @@
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 import { create } from 'zustand';
 import { UserPreferences, University } from '@/constants/types';
 
-const storage = new MMKV({ id: 'user-preferences' });
+const storage = createMMKV({ id: 'user-preferences' });
 
 function loadPrefs(): UserPreferences {
   const raw = storage.getString('prefs');
