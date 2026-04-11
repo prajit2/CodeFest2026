@@ -18,7 +18,9 @@
       "bundleIdentifier": "com.anonymous.CodeFest2026",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Rocky uses your microphone for voice input.",
-        "NSSpeechRecognitionUsageDescription": "Rocky uses speech recognition to understand your voice commands."
+        "NSSpeechRecognitionUsageDescription": "Rocky uses speech recognition to understand your voice commands.",
+        "NSCalendarsUsageDescription": "Rocky saves events to your calendar.",
+        "NSCalendarsWriteOnlyAccessUsageDescription": "Rocky saves events to your calendar."
       }
     },
     "android": {
