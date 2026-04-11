@@ -259,11 +259,11 @@ export default function FeedScreen() {
 
   const filteredItems = (() => {
     let result =
-      activeFilter === 'All'
-        ? items
-        : activeFilter === 'Campus'
-          ? items.filter(i => i.university === university)
-          : items.filter(i => (FILTER_CATEGORIES[activeFilter] ?? []).includes(i.category));
+      activeFilter === 'Campus'
+        ? items.filter(i => i.university === university)
+        : activeFilter === 'All'
+          ? items.filter(i => !i.university)   // exclude campus events from All view
+          : items.filter(i => !i.university && (FILTER_CATEGORIES[activeFilter] ?? []).includes(i.category));
 
     // Boost priority categories to the top on "All" view
     if (activeFilter === 'All' && priorityCategories.size > 0) {
