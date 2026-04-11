@@ -1,0 +1,57 @@
+/**
+ * API client — all three devs import from here.
+ * Change BASE_URL to your deployed backend when ready.
+ */
+const BASE_URL = __DEV__
+  ? 'http://localhost:8000'
+  : 'https://your-deployed-api.com'; // TODO: update when deployed
+
+async function get<T>(path: string, params?: Record<string, string>): Promise<T> {
+  const url = new URL(`${BASE_URL}${path}`);
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  }
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
+  return res.json();
+}
+
+import { ResourceSchema, EventSchema, FeedItemSchema, CrimePointSchema, SeptaArrivalSchema } from './apiTypes';
+
+export const api = {
+  resources: {
+    list: (category?: string) =>
+      get<ResourceSchema[]>('/resources', category ? { category } : undefined),
+    nearby: (lat: number, lon: number, radiusKm = 2, category?: string) =>
+      get<ResourceSchema[]>('/resources/nearby', {
+        lat: String(lat), lon: String(lon), radius_km: String(radiusKm),
+        ...(category ? { category } : {}),
+      }),
+    get: (id: string) => get<ResourceSchema>(`/resources/${id}`),
+    categories: () => get<string[]>('/resources/categories'),
+  },
+
+  events: {
+    list: (university?: string, category?: string) =>
+      get<EventSchema[]>('/events', {
+        ...(university ? { university } : {}),
+        ...(category ? { category } : {}),
+      }),
+  },
+
+  feed: {
+    get: (university?: string) =>
+      get<FeedItemSchema[]>('/feed', university ? { university } : undefined),
+  },
+
+  transit: {
+    stopsNearby: (lat: number, lon: number) =>
+      get('/transit/stops/nearby', { lat: String(lat), lon: String(lon) }),
+    arrivals: (stopId: string) =>
+      get<SeptaArrivalSchema[]>(`/transit/arrivals/${stopId}`),
+  },
+
+  crime: {
+    heatmap: () => get<CrimePointSchema[]>('/crime/heatmap'),
+  },
+};

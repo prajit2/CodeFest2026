@@ -1,15 +1,141 @@
-// STUB — Person 3 owns this screen (Chat + Rocky AI)
-import { StyleSheet, Text, View } from 'react-native';
+import { useState, useRef, useCallback } from 'react';
+import {
+  StyleSheet, View, TextInput, TouchableOpacity,
+  FlatList, KeyboardAvoidingView, Platform, Text,
+} from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useRouter } from 'expo-router';
+import { MessageBubble, Message } from '@/components/chat/MessageBubble';
+import { QuickActionChips } from '@/components/chat/QuickActionChips';
+import { CrisisPanel } from '@/components/chat/CrisisPanel';
+import { detectIntent } from '@/services/rockyIntent';
+import { useMapStore } from '@/store/mapStore';
+
+const WELCOME: Message = {
+  id: 'welcome',
+  role: 'rocky',
+  text: "Hey, I'm Rocky! I can help you find free food, shelters, health clinics, transit, and support in Philadelphia. What do you need today?\n\nNote: I'm an organization tool, not a substitute for professional or medical advice.",
+  timestamp: new Date(),
+};
 
 export default function ChatScreen() {
+  const [messages, setMessages] = useState<Message[]>([WELCOME]);
+  const [input, setInput] = useState('');
+  const [showCrisis, setShowCrisis] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+  const router = useRouter();
+  const mapDispatch = useMapStore((s) => s.dispatch);
+
+  const send = useCallback((text: string) => {
+    if (!text.trim()) return;
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      text: text.trim(),
+      timestamp: new Date(),
+    };
+
+    const intent = detectIntent(text);
+    let rockyText = '';
+    let crisis = false;
+
+    switch (intent.type) {
+      case 'crisis':
+        rockyText = intent.message;
+        crisis = true;
+        break;
+      case 'map_filter':
+        rockyText = intent.response ?? "Opening the map for you.";
+        // Chat-to-map dispatch — Person 2 built the receiving end
+        mapDispatch(intent.mapAction);
+        setTimeout(() => router.push('/(tabs)/map'), 600);
+        break;
+      case 'directions':
+        rockyText = `Let me find directions to ${intent.resourceName}. Opening the map.`;
+        mapDispatch({ type: 'CENTER_ON_LOCATION', latitude: 39.9526, longitude: -75.1652 });
+        setTimeout(() => router.push('/(tabs)/map'), 600);
+        break;
+      default:
+        rockyText = intent.response ?? "I can help you find resources in Philadelphia. Try asking about food, shelter, clinics, or transit.";
+    }
+
+    const rockyMsg: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'rocky',
+      text: rockyText,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev.slice(-9), userMsg, rockyMsg]); // keep last 10
+    setShowCrisis(crisis);
+    setInput('');
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  }, [mapDispatch, router]);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Rocky Chat — Person 3</Text>
-    </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={90}
+    >
+      {/* Rocky header */}
+      <View style={styles.header}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>🐻</Text>
+        </View>
+        <View>
+          <Text style={styles.headerName}>Rocky</Text>
+          <Text style={styles.headerSub}>Philadelphia Resource Assistant</Text>
+        </View>
+      </View>
+
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        keyExtractor={(m) => m.id}
+        renderItem={({ item }) => <MessageBubble message={item} />}
+        contentContainerStyle={styles.messages}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+      />
+
+      {showCrisis && <CrisisPanel />}
+
+      <QuickActionChips onSelect={send} />
+
+      <View style={styles.inputRow}>
+        <TextInput
+          style={styles.input}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Ask Rocky anything..."
+          placeholderTextColor="#8E8E93"
+          returnKeyType="send"
+          onSubmitEditing={() => send(input)}
+          multiline
+        />
+        {/* TODO Week 2: wire up voice input with expo-speech */}
+        <TouchableOpacity style={styles.voiceBtn}>
+          <FontAwesome name="microphone" size={18} color="#8E8E93" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.sendBtn} onPress={() => send(input)}>
+          <FontAwesome name="send" size={16} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  text: { fontSize: 16, color: '#8E8E93' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E5E5EA', gap: 12 },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 22 },
+  headerName: { fontSize: 16, fontWeight: '700', color: '#1C1C1E' },
+  headerSub: { fontSize: 12, color: '#8E8E93' },
+  messages: { paddingVertical: 12 },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', padding: 12, borderTopWidth: 1, borderTopColor: '#E5E5EA', gap: 8 },
+  input: { flex: 1, backgroundColor: '#F2F2F7', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, maxHeight: 100, color: '#1C1C1E' },
+  voiceBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F2F2F7', alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2C7A3A', alignItems: 'center', justifyContent: 'center' },
 });

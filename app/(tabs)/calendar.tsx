@@ -1,15 +1,95 @@
-// STUB — Person 3 owns this screen (Calendar tab)
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, SectionList } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { CalendarEvent } from '@/constants/types';
+
+// TODO Week 3: load from expo-calendar + saved events store
+const STUB_SAVED: CalendarEvent[] = [];
+
+function EmptyCalendar() {
+  return (
+    <View style={styles.empty}>
+      <FontAwesome name="calendar-o" size={48} color="#D1D1D6" />
+      <Text style={styles.emptyTitle}>No saved events yet</Text>
+      <Text style={styles.emptyDesc}>
+        Events you save from the Feed or Rocky will appear here. They'll sync to your phone calendar so you get reminders.
+      </Text>
+    </View>
+  );
+}
+
+function EventCard({ event, onRemove }: { event: CalendarEvent; onRemove: (id: string) => void }) {
+  const date = new Date(event.startTime);
+  return (
+    <View style={styles.card}>
+      <View style={styles.dateCol}>
+        <Text style={styles.dateMonth}>{date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</Text>
+        <Text style={styles.dateDay}>{date.getDate()}</Text>
+      </View>
+      <View style={styles.cardContent}>
+        <Text style={styles.cardTitle}>{event.title}</Text>
+        {event.location && (
+          <View style={styles.row}>
+            <FontAwesome name="map-marker" size={12} color="#8E8E93" />
+            <Text style={styles.metaText}>{event.location}</Text>
+          </View>
+        )}
+        <Text style={styles.time}>
+          {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+        </Text>
+      </View>
+      <TouchableOpacity onPress={() => onRemove(event.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <FontAwesome name="trash-o" size={18} color="#C7C7CC" />
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export default function CalendarScreen() {
+  const [saved, setSaved] = useState<CalendarEvent[]>(STUB_SAVED);
+
+  function removeEvent(id: string) {
+    setSaved((prev) => prev.filter((e) => e.id !== id));
+    // TODO Week 3: cancel push notification, remove from native calendar
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Calendar — Person 3</Text>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Saved Events</Text>
+        <Text style={styles.headerSub}>Syncs to your phone calendar</Text>
+      </View>
+
+      {saved.length === 0 ? (
+        <EmptyCalendar />
+      ) : (
+        <FlatList
+          data={saved}
+          keyExtractor={(e) => e.id}
+          renderItem={({ item }) => <EventCard event={item} onRemove={removeEvent} />}
+          contentContainerStyle={styles.list}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  text: { fontSize: 16, color: '#8E8E93' },
+  container: { flex: 1, backgroundColor: '#F2F2F7' },
+  header: { backgroundColor: '#FFFFFF', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E5E5EA' },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#1C1C1E' },
+  headerSub: { fontSize: 13, color: '#8E8E93', marginTop: 2 },
+  list: { padding: 16, gap: 12 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 12, flexDirection: 'row', alignItems: 'center', padding: 14, gap: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  dateCol: { alignItems: 'center', width: 36 },
+  dateMonth: { fontSize: 10, fontWeight: '700', color: '#2C7A3A', letterSpacing: 0.5 },
+  dateDay: { fontSize: 22, fontWeight: '700', color: '#1C1C1E' },
+  cardContent: { flex: 1, gap: 4 },
+  cardTitle: { fontSize: 15, fontWeight: '600', color: '#1C1C1E' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontSize: 12, color: '#8E8E93' },
+  time: { fontSize: 12, color: '#8E8E93' },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 16 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#1C1C1E' },
+  emptyDesc: { fontSize: 14, color: '#8E8E93', textAlign: 'center', lineHeight: 20 },
 });
