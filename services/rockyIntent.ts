@@ -1,7 +1,7 @@
 import { MapDispatchAction, ResourceCategory } from '@/constants/types';
 
 export type RockyIntent =
-  | { type: 'map_filter'; category: ResourceCategory; mapAction: MapDispatchAction }
+  | { type: 'map_filter'; category: ResourceCategory; response: string; mapAction: MapDispatchAction }
   | { type: 'crisis'; message: string }
   | { type: 'directions'; resourceName: string }
   | { type: 'general'; response: string };
@@ -80,6 +80,7 @@ export function detectIntent(message: string): RockyIntent {
       return {
         type: 'map_filter',
         category: intent.category,
+        response: intent.response,
         mapAction: { type: 'FILTER_CATEGORY', category: intent.category },
       };
     }
