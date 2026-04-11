@@ -29,6 +29,7 @@ function toResource(r: ResourceSchema): Resource {
     longitude: r.longitude,
     phone: r.phone,
     hours: r.hours,
+    university: r.description ?? undefined,
     nearestSeptaStops: r.nearest_septa_stops,
   };
 }
@@ -48,6 +49,7 @@ export default function MapScreen() {
   const setFocusedResource = useMapStore((s) => s.setFocusedResource);
 
   const isStudent = useUserStore((s) => s.isStudent);
+  const university = useUserStore((s) => s.university);
 
   // Request location
   useEffect(() => {
@@ -86,7 +88,10 @@ export default function MapScreen() {
   }, [centerLatitude, centerLongitude]);
 
   const visibleResources = resources.filter((r) => {
-    if (r.category === 'campus_resource' && !isStudent) return false;
+    if (r.category === 'campus_resource') {
+      if (!isStudent) return false;
+      if (university && r.university && r.university !== university) return false;
+    }
     return visibleCategories[r.category as ResourceCategory];
   });
 

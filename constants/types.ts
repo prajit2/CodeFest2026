@@ -18,6 +18,7 @@ export interface Resource {
   longitude: number;
   phone?: string;
   hours?: string;
+  university?: string;
   nearestSeptaStops?: SeptaStop[];
 }
 
