@@ -6,6 +6,7 @@ import { FeedItemSchema } from '@/services/apiTypes';
 import { useUserStore } from '@/store/userStore';
 import { useCalendarStore } from '@/store/calendarStore';
 import { scheduleEventReminder } from '@/services/notifications';
+import { addToNativeCalendar } from '@/services/nativeCalendar';
 import { CalendarEvent } from '@/constants/types';
 
 function toCalendarEvent(item: FeedItemSchema): CalendarEvent {
@@ -80,8 +81,15 @@ export default function FeedScreen() {
 
   async function handleSave(item: FeedItemSchema) {
     const event = toCalendarEvent(item);
-    const notificationId = await scheduleEventReminder(event.id, event.title, event.startTime);
-    saveEvent({ ...event, notificationId: notificationId ?? undefined });
+    const [notificationId, nativeCalendarEventId] = await Promise.all([
+      scheduleEventReminder(event.id, event.title, event.startTime),
+      addToNativeCalendar(event),
+    ]);
+    saveEvent({
+      ...event,
+      notificationId: notificationId ?? undefined,
+      nativeCalendarEventId: nativeCalendarEventId ?? undefined,
+    });
   }
 
   async function load(isRefresh = false) {
