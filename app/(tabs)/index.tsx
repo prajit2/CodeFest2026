@@ -1,10 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   StyleSheet, View, TextInput, TouchableOpacity,
   FlatList, KeyboardAvoidingView, Platform, Text,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice';
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { useRouter } from 'expo-router';
 import { MessageBubble, Message } from '@/components/chat/MessageBubble';
 import { QuickActionChips } from '@/components/chat/QuickActionChips';
@@ -90,31 +90,31 @@ export default function ChatScreen() {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   }, [mapDispatch, router, isStudent, university]);
 
-  useEffect(() => {
-    Voice.onSpeechResults = (e: SpeechResultsEvent) => {
-      const text = e.value?.[0];
-      if (text) send(text);
+  useSpeechRecognitionEvent('result', (e) => {
+    const text = e.results[0]?.transcript;
+    if (text && e.isFinal) {
+      send(text);
       setIsListening(false);
-    };
-    Voice.onSpeechError = (_: SpeechErrorEvent) => {
-      setIsListening(false);
-    };
-    return () => {
-      Voice.destroy().then(() => Voice.removeAllListeners());
-    };
-  }, [send]);
+    }
+  });
+
+  useSpeechRecognitionEvent('error', () => {
+    setIsListening(false);
+  });
+
+  useSpeechRecognitionEvent('end', () => {
+    setIsListening(false);
+  });
 
   async function toggleVoice() {
     if (isListening) {
-      await Voice.stop();
+      ExpoSpeechRecognitionModule.stop();
       setIsListening(false);
     } else {
-      try {
-        await Voice.start('en-US');
-        setIsListening(true);
-      } catch {
-        setIsListening(false);
-      }
+      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!granted) return;
+      ExpoSpeechRecognitionModule.start({ lang: 'en-US' });
+      setIsListening(true);
     }
   }
 
