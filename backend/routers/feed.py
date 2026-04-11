@@ -23,7 +23,6 @@ FEED_CATEGORIES = {
     ResourceCategory.clinic,
     ResourceCategory.mental_health,
     ResourceCategory.support_group,
-    ResourceCategory.campus_resource,
 }
 
 
