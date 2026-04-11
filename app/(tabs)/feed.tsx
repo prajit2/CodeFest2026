@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, ScrollView, Pressable, Platform, Linking } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -207,7 +207,8 @@ export default function FeedScreen() {
   const substanceSupport = useUserStore((s) => s.substanceSupport);
   const mentalHealthSupport = useUserStore((s) => s.mentalHealthSupport);
   const saveEvent = useCalendarStore((s) => s.saveEvent);
-  const savedIds = useCalendarStore((s) => new Set(s.savedEvents.map((e) => e.id)));
+  const savedEvents = useCalendarStore((s) => s.savedEvents);
+  const savedIds = useMemo(() => new Set(savedEvents.map((e) => e.id)), [savedEvents]);
 
   const needs = [
     substanceSupport ? 'substance' : null,

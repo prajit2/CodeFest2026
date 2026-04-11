@@ -30,7 +30,7 @@ function toCalendarEvent(item: FeedItemSchema): CalendarEvent {
 
 function MiniEventCard({ item }: { item: FeedItemSchema }) {
   const saveEvent = useCalendarStore((s) => s.saveEvent);
-  const isSaved = useCalendarStore((s) => s.isSaved(item.id));
+  const isSaved = useCalendarStore((s) => s.savedEvents.some((e) => e.id === item.id));
 
   async function handleSave(item: FeedItemSchema) {
     try {
