@@ -12,6 +12,7 @@ import { CrisisPanel } from '@/components/chat/CrisisPanel';
 import { RockyAvatar } from '@/components/chat/RockyAvatar';
 import { detectIntent } from '@/services/rockyIntent';
 import { useMapStore } from '@/store/mapStore';
+import { useUserStore } from '@/store/userStore';
 import { api } from '@/services/api';
 
 const WELCOME: Message = {
@@ -29,6 +30,8 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
   const mapDispatch = useMapStore((s) => s.dispatch);
+  const isStudent = useUserStore((s) => s.isStudent);
+  const university = useUserStore((s) => s.university);
 
   const send = useCallback(async (text: string) => {
     if (!text.trim()) return;
@@ -40,7 +43,7 @@ export default function ChatScreen() {
       timestamp: new Date(),
     };
 
-    const intent = detectIntent(text);
+    const intent = detectIntent(text, { isStudent, university });
     let rockyText = '';
     let crisis = false;
     let rockyEvents: Message['events'] | undefined;
@@ -85,7 +88,7 @@ export default function ChatScreen() {
     setShowCrisis(crisis);
     setInput('');
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-  }, [mapDispatch, router]);
+  }, [mapDispatch, router, isStudent, university]);
 
   useEffect(() => {
     Voice.onSpeechResults = (e: SpeechResultsEvent) => {
