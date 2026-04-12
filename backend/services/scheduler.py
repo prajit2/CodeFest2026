@@ -263,100 +263,25 @@ def ingest_septa_stops():
 
 def scrape_university_events():
     """
-    Scrape free food events from university calendars every 6 hours.
-    Currently implements Drexel; others (Temple, UPenn, CCP, SJU, LaSalle) are stubs.
+    Refresh Drexel events weekly via the DragonLink public API.
+    Other schools are not implemented — their events are static seed data.
     """
-    import hashlib
-    import httpx
-    from bs4 import BeautifulSoup
-    from datetime import datetime, timezone
-    from database import SessionLocal
-    from models import Event
-
-    scraped = []
-
-    def scrape_drexel(client: httpx.Client):
-        url = "https://drexel.edu/studentlife/events/"
-        try:
-            resp = client.get(url, timeout=15.0, follow_redirects=True)
-            resp.raise_for_status()
-        except httpx.HTTPError as e:
-            logger.warning(f"[scraper] Drexel fetch failed: {e}")
-            return []
-
-        soup = BeautifulSoup(resp.text, "html.parser")
-        events = []
-        FOOD_KEYWORDS = {"free", "food", "lunch", "pantry", "snack", "breakfast", "dinner", "community"}
-
-        for card in soup.select("article.event-item, div.event-card, li.event, article[class*='event']"):
-            title_el = card.select_one("h3 a, h2 a, .event-title a, .event-title")
-            time_el = card.select_one("time[datetime]")
-            loc_el = card.select_one(".event-location, .location")
-
-            if not title_el or not time_el:
-                continue
-
-            title = title_el.get_text(strip=True)
-            if not any(kw in title.lower() for kw in FOOD_KEYWORDS):
-                continue
-
-            try:
-                start_time = datetime.fromisoformat(time_el["datetime"].replace("Z", "+00:00"))
-            except (ValueError, KeyError):
-                continue
-
-            location = loc_el.get_text(strip=True) if loc_el else "Drexel University"
-            href = title_el.get("href", "")
-            source_url = "https://drexel.edu" + href if href.startswith("/") else href
-            eid = "drexel_" + hashlib.md5(f"{title}{start_time.date()}".encode()).hexdigest()[:10]
-
-            events.append({
-                "id": eid, "title": title, "university": "drexel",
-                "location": location, "start_time": start_time,
-                "category": "free_food", "source_url": source_url,
-            })
-        return events
-
-    with httpx.Client(headers={"User-Agent": "RockyAI/1.0 (Community Resource App)"}) as client:
-        scraped += scrape_drexel(client)
-        # TODO: add scrape_temple, scrape_upenn, scrape_ccp, scrape_sju, scrape_lasalle
-
-    if not scraped:
-        logger.info("[scheduler] scrape_university_events — no events found this run")
-        return
-
-    db = SessionLocal()
     try:
-        now = datetime.now(timezone.utc)
-        upserted = 0
-        for ev in scraped:
-            existing = db.query(Event).filter(Event.id == ev["id"]).first()
-            if existing:
-                existing.title = ev["title"]
-                existing.location = ev["location"]
-                existing.start_time = ev["start_time"]
-                existing.scraped_at = now
-            else:
-                db.add(Event(
-                    id=ev["id"], title=ev["title"], university=ev["university"],
-                    location=ev["location"], start_time=ev["start_time"],
-                    category=ev["category"], source_url=ev["source_url"],
-                    scraped_at=now,
-                ))
-            upserted += 1
-        db.commit()
-        logger.info(f"[scheduler] scrape_university_events — upserted {upserted} events")
+        import scrape_drexel
+        scrape_drexel.seed(take=50)
+        logger.info("[scheduler] scrape_university_events — Drexel refresh complete")
     except Exception as e:
-        db.rollback()
         logger.error(f"[scheduler] scrape_university_events — error: {e}")
-    finally:
-        db.close()
 
 
 def start_scheduler():
-    scheduler.add_job(ingest_open_data_philly, "cron", hour=2, minute=0, id="open_data_philly")
-    scheduler.add_job(ingest_crime_data, "cron", hour=3, minute=0, id="crime_data")
+    # Crime overlay — every 6 hours
+    scheduler.add_job(ingest_crime_data, "interval", hours=6, id="crime_data")
+    # Drexel campus events — weekly on Monday at 6am
+    scheduler.add_job(scrape_university_events, "cron", day_of_week="mon", hour=6, minute=0, id="university_events")
+    # Static resources (clinics, shelters) — weekly on Sunday at 2am
+    scheduler.add_job(ingest_open_data_philly, "cron", day_of_week="sun", hour=2, minute=0, id="open_data_philly")
+    # SEPTA stops — weekly on Sunday at 4am
     scheduler.add_job(ingest_septa_stops, "cron", day_of_week="sun", hour=4, id="septa_stops")
-    scheduler.add_job(scrape_university_events, "interval", hours=6, id="university_events")
     scheduler.start()
     logger.info("[scheduler] started — 4 jobs scheduled")

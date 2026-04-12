@@ -23,6 +23,16 @@ FOOD_BANKS = [
     {"id": "fb8",  "name": "St. Francis Inn Ministries",           "address": "2441 Kensington Ave, Philadelphia, PA 19125",  "latitude": 39.9927, "longitude": -75.1291, "phone": "215-423-5845",  "hours": "Daily 8am–9am (breakfast)"},
     {"id": "fb9",  "name": "Germantown Settlement Community Food", "address": "5575 Germantown Ave, Philadelphia, PA 19144",  "latitude": 40.0362, "longitude": -75.1661, "phone": "215-844-3260",  "hours": "Mon & Wed 10am–12pm"},
     {"id": "fb10", "name": "Bethel Temple Food Bank",              "address": "2nd & Snyder Ave, Philadelphia, PA 19148",     "latitude": 39.9212, "longitude": -75.1497, "phone": "215-468-1911",  "hours": "Sat 9am–11am"},
+    {"id": "fb11", "name": "Saint Mark's Food Cupboard",           "address": "1625 Locust St, Philadelphia, PA 19103",       "latitude": 39.9500, "longitude": -75.1630, "phone": "215-735-1416",  "hours": "Tue–Fri 9:30am–11am"},
+    {"id": "fb12", "name": "Bebashi Food First Pantry",            "address": "1237 Spring Garden St, Philadelphia, PA 19123","latitude": 39.9650, "longitude": -75.1550, "phone": "215-769-3561",  "hours": "Mon–Fri 9am–4pm"},
+    {"id": "fb13", "name": "Grace Evangelical Lutheran Food Pantry","address": "3529 Haverford Ave, Philadelphia, PA 19104",   "latitude": 39.9560, "longitude": -75.2160, "phone": "215-222-3570",  "hours": "Wed & Thu 9am–1pm"},
+    {"id": "fb14", "name": "Mount Zion United Holy Church Pantry", "address": "4110 Haverford Ave, Philadelphia, PA 19104",   "latitude": 39.9560, "longitude": -75.2150, "phone": "215-476-6522",  "hours": "2nd Sun & 3rd Wed 11am–1pm"},
+    {"id": "fb15", "name": "People's Emergency Center Food Pantry","address": "325 N 39th St, Philadelphia, PA 19104",        "latitude": 39.9620, "longitude": -75.2040, "phone": "267-777-5880",  "hours": "Call for hours"},
+    {"id": "fb16", "name": "Casa del Carmen Food Pantry",          "address": "4400 N Reese St, Philadelphia, PA 19140",      "latitude": 39.9980, "longitude": -75.1350, "phone": "267-331-2500",  "hours": "Mon–Wed 9am–12pm"},
+    {"id": "fb17", "name": "Mission of Saint Joan of Arc Pantry",  "address": "2025 E Atlantic St, Philadelphia, PA 19134",   "latitude": 39.9850, "longitude": -75.0850, "phone": "215-535-4641",  "hours": "Tue & Thu 10am–12pm"},
+    {"id": "fb18", "name": "Caring for Friends Food Pantry",       "address": "12271 Townsend Rd, Philadelphia, PA 19154",    "latitude": 40.0695, "longitude": -75.0920, "phone": "215-464-2224",  "hours": "Mon–Fri 9am–5pm; Sat 9am–12pm"},
+    {"id": "fb19", "name": "Salvation Army Kroc Center Pantry",    "address": "4200 Wissahickon Ave, Philadelphia, PA 19129", "latitude": 40.0200, "longitude": -75.2100, "phone": "215-558-1500",  "hours": "Mon–Fri 8am–5pm"},
+    {"id": "fb20", "name": "Helen Brown Community Center Pantry",  "address": "1845 N 23rd St, Philadelphia, PA 19121",       "latitude": 39.9750, "longitude": -75.1650, "phone": None,            "hours": "Mon/Wed/Thu 10:30am–12:30pm"},
 ]
 
 MENTAL_HEALTH = [

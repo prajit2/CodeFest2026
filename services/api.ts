@@ -8,7 +8,7 @@ import { ResourceSchema, EventSchema, FeedItemSchema, CrimePointSchema, SeptaArr
 const BASE_URL = __DEV__
   ? Platform.OS === 'android'
     ? 'http://10.0.2.2:8000'
-    : 'http://localhost:8000'
+    : 'http://10.250.92.254:8000'
   : 'https://your-deployed-api.com'; // TODO: update when deployed
 
 async function get<T>(path: string, params?: Record<string, string>): Promise<T> {

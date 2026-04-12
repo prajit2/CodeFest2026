@@ -48,6 +48,8 @@ class FeedItemSchema(BaseModel):
     description: Optional[str] = None
     university: Optional[str] = None
     location: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     start_time: str
     category: str
     resource_id: Optional[str] = None

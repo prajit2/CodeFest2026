@@ -5,8 +5,18 @@ from datetime import datetime, timezone
 from database import get_db
 from schemas import FeedItemSchema
 from models import Event, Resource, ResourceCategory
+from utils import distance_km
 
 router = APIRouter(prefix="/feed", tags=["feed"])
+
+UNIVERSITY_COORDS: dict = {
+    "drexel":        (39.9558, -75.1875),
+    "temple":        (39.9806, -75.1553),
+    "upenn":         (39.9522, -75.1932),
+    "ccp":           (39.9609, -75.1671),
+    "saint_josephs": (40.0038, -75.2279),
+    "lasalle":       (40.0348, -75.1639),
+}
 
 NEEDS_TO_CATEGORIES = {
     "food": {"free_food", "food_bank"},
@@ -33,6 +43,8 @@ def _event_to_feed(e: Event) -> FeedItemSchema:
         description=e.description,
         university=e.university,
         location=e.location,
+        latitude=e.latitude,
+        longitude=e.longitude,
         start_time=e.start_time.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         category=e.category,
         resource_id=e.resource_id,
@@ -49,6 +61,8 @@ def _resource_to_feed(r: Resource) -> FeedItemSchema:
         description=None,
         university=university,
         location=r.address,
+        latitude=r.latitude,
+        longitude=r.longitude,
         start_time=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         category=cat,
         resource_id=r.id,
@@ -85,9 +99,20 @@ def get_feed(
             allowed |= NEEDS_TO_CATEGORIES.get(need.strip(), set())
         items = [i for i in items if i.category in allowed]
 
+    uni_coords = UNIVERSITY_COORDS.get(university) if university else None
+
+    def dist_to_uni(item: FeedItemSchema) -> float:
+        if uni_coords and item.latitude is not None and item.longitude is not None:
+            return distance_km(uni_coords[0], uni_coords[1], item.latitude, item.longitude)
+        return float("inf")
+
     if university:
         campus = [i for i in items if i.university == university]
         other = [i for i in items if i.university != university]
+        campus.sort(key=dist_to_uni)
+        other.sort(key=dist_to_uni)
         items = campus + other
+    elif uni_coords:
+        items.sort(key=dist_to_uni)
 
     return items
