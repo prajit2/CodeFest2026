@@ -21,11 +21,22 @@ export function LayerFilterPanel() {
   const toggleCrimeOverlay = useMapStore((s) => s.toggleCrimeOverlay);
   const isStudent = useUserStore((s) => s.isStudent);
 
+  const showAllCategories = useMapStore((s) => s.showAllCategories);
   const categories = isStudent ? CATEGORIES : CATEGORIES.filter((c) => c !== 'campus_resource');
+  const anyHidden = categories.some((c) => !visibleCategories[c]);
 
   return (
     <View style={styles.container}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {anyHidden && (
+          <TouchableOpacity
+            style={[styles.chip, { borderColor: '#1C1C1E', backgroundColor: '#1C1C1E' }]}
+            onPress={showAllCategories}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.chipTextActive}>Show All</Text>
+          </TouchableOpacity>
+        )}
         {categories.map((cat) => {
           const active = visibleCategories[cat];
           return (

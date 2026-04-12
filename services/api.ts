@@ -11,6 +11,16 @@ const BASE_URL = __DEV__
     : 'http://10.250.92.254:8000'
   : 'https://your-deployed-api.com'; // TODO: update when deployed
 
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
+  return res.json();
+}
+
 async function get<T>(path: string, params?: Record<string, string>): Promise<T> {
   const url = new URL(`${BASE_URL}${path}`);
   if (params) {
@@ -59,5 +69,9 @@ export const api = {
 
   crime: {
     heatmap: () => get<CrimePointSchema[]>('/crime/heatmap'),
+  },
+
+  chat: {
+    send: (message: string) => post<{ reply: string }>('/chat', { message }),
   },
 };

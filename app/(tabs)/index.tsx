@@ -27,6 +27,7 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [showCrisis, setShowCrisis] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
   const mapDispatch = useMapStore((s) => s.dispatch);
@@ -34,61 +35,81 @@ export default function ChatScreen() {
   const university = useUserStore((s) => s.university);
 
   const send = useCallback(async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || isThinking) return;
 
     const userMsg: Message = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      id: `${Date.now()}-u`,
       role: 'user',
       text: text.trim(),
       timestamp: new Date(),
     };
 
     const intent = detectIntent(text, { isStudent, university });
-    let rockyText = '';
-    let crisis = false;
-    let rockyEvents: Message['events'] | undefined;
+    setInput('');
 
-    switch (intent.type) {
-      case 'crisis':
-        rockyText = intent.message;
-        crisis = true;
-        break;
-      case 'map_filter':
-        rockyText = intent.response ?? "Opening the map for you.";
-        mapDispatch(intent.mapAction);
-        setTimeout(() => router.push('/(tabs)/map'), 600);
-        break;
-      case 'directions':
-        rockyText = `A-ite, lemme pull up ${intent.resourceName} on the map jawn.`;
-        mapDispatch({ type: 'CENTER_ON_LOCATION', latitude: 39.9526, longitude: -75.1652 });
-        setTimeout(() => router.push('/(tabs)/map'), 600);
-        break;
-      case 'show_events':
-        rockyText = intent.response;
-        try {
-          const data = await api.feed.get();
-          rockyEvents = data.slice(0, 5);
-        } catch {
-          rockyText = "I couldn't load events right now. Try again in a moment.";
-        }
-        break;
-      default:
-        rockyText = intent.response ?? "I can help you find resources in Philadelphia. Try asking about food, shelter, clinics, or transit.";
+    // Crisis — local only, never AI
+    if (intent.type === 'crisis') {
+      const rockyMsg: Message = { id: `${Date.now()}-r`, role: 'rocky', text: intent.message, timestamp: new Date() };
+      setMessages((prev) => [...prev.slice(-9), userMsg, rockyMsg]);
+      setShowCrisis(true);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      return;
     }
 
-    const rockyMsg: Message = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      role: 'rocky',
-      text: rockyText,
-      timestamp: new Date(),
-      ...(rockyEvents !== undefined ? { events: rockyEvents } : {}),
-    };
+    // Map filter — instant, navigate
+    if (intent.type === 'map_filter') {
+      mapDispatch(intent.mapAction);
+      setTimeout(() => router.push('/(tabs)/map'), 600);
+      const rockyMsg: Message = { id: `${Date.now()}-r`, role: 'rocky', text: intent.response, timestamp: new Date() };
+      setMessages((prev) => [...prev.slice(-9), userMsg, rockyMsg]);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      return;
+    }
 
-    setMessages((prev) => [...prev.slice(-9), userMsg, rockyMsg]); // keep last 10
-    setShowCrisis(crisis);
-    setInput('');
+    // Directions — instant, navigate
+    if (intent.type === 'directions') {
+      mapDispatch({ type: 'CENTER_ON_LOCATION', latitude: 39.9526, longitude: -75.1652 });
+      setTimeout(() => router.push('/(tabs)/map'), 600);
+      const rockyMsg: Message = { id: `${Date.now()}-r`, role: 'rocky', text: `A-ite, lemme pull up ${intent.resourceName} on the map jawn.`, timestamp: new Date() };
+      setMessages((prev) => [...prev.slice(-9), userMsg, rockyMsg]);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      return;
+    }
+
+    // Events — fetch from API
+    if (intent.type === 'show_events') {
+      let rockyText = intent.response;
+      let rockyEvents: Message['events'] | undefined;
+      try {
+        const data = await api.feed.get();
+        rockyEvents = data.slice(0, 5);
+      } catch {
+        rockyText = "I couldn't load events right now. Try again in a moment.";
+      }
+      const rockyMsg: Message = { id: `${Date.now()}-r`, role: 'rocky', text: rockyText, timestamp: new Date(), ...(rockyEvents ? { events: rockyEvents } : {}) };
+      setMessages((prev) => [...prev.slice(-9), userMsg, rockyMsg]);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      return;
+    }
+
+    // General — route through GPT-4o
+    setMessages((prev) => [...prev.slice(-9), userMsg]);
+    setIsThinking(true);
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-  }, [mapDispatch, router, isStudent, university]);
+
+    let aiText = intent.response;
+    try {
+      const { reply } = await api.chat.send(text.trim());
+      aiText = reply;
+    } catch {
+      // AI unavailable — fall back to keyword response
+    }
+
+    const rockyMsg: Message = { id: `${Date.now()}-r`, role: 'rocky', text: aiText, timestamp: new Date() };
+    setMessages((prev) => [...prev, rockyMsg]);
+    setIsThinking(false);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  }, [mapDispatch, router, isStudent, university, isThinking]);
 
   useSpeechRecognitionEvent('result', (e) => {
     const text = e.results[0]?.transcript;
@@ -144,6 +165,14 @@ export default function ChatScreen() {
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
       />
 
+      {isThinking && (
+        <View style={styles.thinkingRow}>
+          <View style={styles.thinkingBubble}>
+            <Text style={styles.thinkingText}>Rocky is typing...</Text>
+          </View>
+        </View>
+      )}
+
       {showCrisis && <CrisisPanel />}
 
       <QuickActionChips onSelect={send} />
@@ -165,7 +194,7 @@ export default function ChatScreen() {
         >
           <FontAwesome name="microphone" size={18} color={isListening ? '#2C7A3A' : '#8E8E93'} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.sendBtn} onPress={() => send(input)}>
+        <TouchableOpacity style={[styles.sendBtn, isThinking && styles.sendBtnDisabled]} onPress={() => send(input)} disabled={isThinking}>
           <FontAwesome name="send" size={16} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -185,4 +214,8 @@ const styles = StyleSheet.create({
   voiceBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F2F2F7', alignItems: 'center', justifyContent: 'center' },
   voiceBtnActive: { backgroundColor: '#E8F5E9' },
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2C7A3A', alignItems: 'center', justifyContent: 'center' },
+  sendBtnDisabled: { backgroundColor: '#A5D6A7' },
+  thinkingRow: { paddingHorizontal: 16, marginVertical: 4 },
+  thinkingBubble: { backgroundColor: '#F2F2F7', borderRadius: 16, borderBottomLeftRadius: 4, paddingHorizontal: 14, paddingVertical: 10, alignSelf: 'flex-start' },
+  thinkingText: { fontSize: 15, color: '#8E8E93', fontStyle: 'italic' },
 });
