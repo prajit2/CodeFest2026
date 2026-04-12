@@ -18,6 +18,7 @@ interface MapStore {
   toggleCategory: (category: ResourceCategory) => void;
   toggleCrimeOverlay: () => void;
   setFocusedResource: (id: string | null) => void;
+  showAllCategories: () => void;
 
   // Chat-to-map bridge — Rocky calls this, map listens to it
   dispatch: (action: MapDispatchAction) => void;
@@ -48,6 +49,8 @@ export const useMapStore = create<MapStore>((set) => ({
         [category]: !state.visibleCategories[category],
       },
     })),
+
+  showAllCategories: () => set({ visibleCategories: { ...ALL_VISIBLE } }),
 
   toggleCrimeOverlay: () =>
     set((state) => ({ crimeOverlayVisible: !state.crimeOverlayVisible })),

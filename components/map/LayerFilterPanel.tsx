@@ -19,13 +19,27 @@ export function LayerFilterPanel() {
   const crimeOverlayVisible = useMapStore((s) => s.crimeOverlayVisible);
   const toggleCategory = useMapStore((s) => s.toggleCategory);
   const toggleCrimeOverlay = useMapStore((s) => s.toggleCrimeOverlay);
+  const showAllCategories = useMapStore((s) => s.showAllCategories);
   const isStudent = useUserStore((s) => s.isStudent);
 
   const categories = isStudent ? CATEGORIES : CATEGORIES.filter((c) => c !== 'campus_resource');
 
+  const anyHidden = categories.some((cat) => !visibleCategories[cat]);
+
   return (
     <View style={styles.container}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {anyHidden && (
+          <TouchableOpacity
+            style={[styles.chip, styles.showAllChip]}
+            onPress={showAllCategories}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Show all categories"
+          >
+            <Text style={[styles.chipText, styles.showAllChipText]}>Show All</Text>
+          </TouchableOpacity>
+        )}
         {categories.map((cat) => {
           const active = visibleCategories[cat];
           return (
@@ -80,5 +94,12 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: '#FFFFFF',
+  },
+  showAllChip: {
+    borderColor: '#2C7A3A',
+    backgroundColor: '#E8F5E9',
+  },
+  showAllChipText: {
+    color: '#2C7A3A',
   },
 });

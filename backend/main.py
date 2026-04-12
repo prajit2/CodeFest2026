@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from routers import resources, events, feed, transit, crime
+from routers import resources, events, feed, transit, crime, chat
 from services.scheduler import start_scheduler
 
 
@@ -25,6 +25,7 @@ app.include_router(events.router)
 app.include_router(feed.router)
 app.include_router(transit.router)
 app.include_router(crime.router)
+app.include_router(chat.router)
 
 
 @app.get("/")
