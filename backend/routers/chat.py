@@ -1,21 +1,22 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional
 import os
-from openai import AsyncOpenAI
+from google import genai
+from google.genai import types
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-_client: Optional[AsyncOpenAI] = None
+_client = None
 
 
-def _get_client() -> AsyncOpenAI:
+def _get_client():
     global _client
     if _client is None:
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
-            raise RuntimeError("OPENAI_API_KEY environment variable is not set")
-        _client = AsyncOpenAI(api_key=api_key)
+            raise RuntimeError("GEMINI_API_KEY environment variable is not set")
+        _client = genai.Client(api_key=api_key)
     return _client
 
 
@@ -29,14 +30,9 @@ SYSTEM_PROMPT = (
 )
 
 
-class ChatMessage(BaseModel):
-    role: str  # "user" or "assistant"
-    content: str
-
-
 class ChatRequest(BaseModel):
-    messages: List[ChatMessage]
-    university: Optional[str] = None  # optional context: drexel, temple, upenn, ccp, etc.
+    message: str
+    university: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
@@ -45,43 +41,32 @@ class ChatResponse(BaseModel):
 
 @router.post("", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """
-    Send a conversation to GPT-4o and receive Rocky's response.
-    Accepts a full message history so the client controls context length.
-    """
-    if not request.messages:
-        raise HTTPException(status_code=422, detail="messages list must not be empty")
+    if not request.message.strip():
+        raise HTTPException(status_code=422, detail="message must not be empty")
 
-    # Build system prompt with optional university context
-    system_content = SYSTEM_PROMPT
+    system = SYSTEM_PROMPT
     if request.university:
-        system_content += (
+        system += (
             f" The user is affiliated with {request.university.title()} University in Philadelphia, "
             "so prioritize campus-specific resources when relevant."
         )
 
-    openai_messages = [{"role": "system", "content": system_content}]
-    for msg in request.messages:
-        if msg.role not in {"user", "assistant"}:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Invalid role '{msg.role}'. Must be 'user' or 'assistant'.",
-            )
-        openai_messages.append({"role": msg.role, "content": msg.content})
-
     try:
         client = _get_client()
-        completion = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=openai_messages,
-            max_tokens=512,
-            temperature=0.7,
+        response = await client.aio.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=request.message,
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                max_output_tokens=512,
+                temperature=0.7,
+            ),
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"OpenAI API error: {exc}")
+        raise HTTPException(status_code=502, detail=f"Gemini API error: {exc}")
 
-    reply = completion.choices[0].message.content
-    if reply is None:
-        raise HTTPException(status_code=502, detail="OpenAI returned an empty response")
+    reply = response.text
+    if not reply:
+        raise HTTPException(status_code=502, detail="Gemini returned an empty response")
 
     return ChatResponse(reply=reply)

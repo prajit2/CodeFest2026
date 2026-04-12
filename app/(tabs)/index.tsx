@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   StyleSheet, View, TextInput, TouchableOpacity,
-  FlatList, KeyboardAvoidingView, Platform, Text,
+  FlatList, KeyboardAvoidingView, Platform, Text, Alert, PermissionsAndroid,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice';
@@ -26,6 +26,7 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [showCrisis, setShowCrisis] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
   const mapDispatch = useMapStore((s) => s.dispatch);
@@ -69,8 +70,30 @@ export default function ChatScreen() {
           rockyText = "I couldn't load events right now. Try again in a moment.";
         }
         break;
-      default:
-        rockyText = intent.response ?? "I can help you find resources in Philadelphia. Try asking about food, shelter, clinics, or transit.";
+      default: {
+        setIsThinking(true);
+        setMessages((prev) => [...prev.slice(-9), userMsg]);
+        setInput('');
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+        try {
+          const chatRes = await api.chat.send(text.trim());
+          rockyText = chatRes.reply;
+        } catch {
+          rockyText = intent.response ?? "I can help you find resources in Philadelphia. Try asking about food, shelter, clinics, or transit.";
+        } finally {
+          setIsThinking(false);
+        }
+        const rockyMsgAsync: Message = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          role: 'rocky',
+          text: rockyText,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, rockyMsgAsync]);
+        setShowCrisis(crisis);
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+        return;
+      }
     }
 
     const rockyMsg: Message = {
@@ -101,16 +124,50 @@ export default function ChatScreen() {
     };
   }, [send]);
 
+  async function requestMicPermission(): Promise<boolean> {
+    if (Platform.OS === 'android') {
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        {
+          title: 'Microphone Permission',
+          message: 'Rocky needs microphone access to hear your voice.',
+          buttonPositive: 'Allow',
+          buttonNegative: 'Deny',
+        },
+      );
+      return result === PermissionsAndroid.RESULTS.GRANTED;
+    }
+    // On iOS the system dialog fires automatically on first Voice.start() call.
+    // Return true here and let the catch block below handle a denial.
+    return true;
+  }
+
   async function toggleVoice() {
     if (isListening) {
       await Voice.stop();
       setIsListening(false);
     } else {
+      const granted = await requestMicPermission();
+      if (!granted) {
+        Alert.alert(
+          'Microphone Access Denied',
+          'Please enable microphone permission in Settings to use voice input.',
+        );
+        return;
+      }
       try {
         await Voice.start('en-US');
         setIsListening(true);
-      } catch {
+      } catch (err: unknown) {
         setIsListening(false);
+        const msg = err instanceof Error ? err.message : String(err);
+        // iOS surfaces permission denial as an error from Voice.start
+        if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('denied')) {
+          Alert.alert(
+            'Microphone Access Denied',
+            'Please enable microphone permission in Settings to use voice input.',
+          );
+        }
       }
     }
   }
@@ -124,7 +181,7 @@ export default function ChatScreen() {
       {/* Rocky header */}
       <View style={styles.header}>
         <View style={styles.avatar}>
-          <RockyAvatar size={44} />
+          <RockyAvatar size={44} isThinking={isThinking} />
         </View>
         <View>
           <Text style={styles.headerName}>Rocky</Text>
@@ -143,6 +200,15 @@ export default function ChatScreen() {
 
       {showCrisis && <CrisisPanel />}
 
+      {isThinking && (
+        <View style={styles.thinkingRow}>
+          <Text style={styles.thinkingDot}>.</Text>
+          <Text style={styles.thinkingDot}>.</Text>
+          <Text style={styles.thinkingDot}>.</Text>
+          <Text style={styles.thinkingLabel}>Rocky is thinking</Text>
+        </View>
+      )}
+
       <QuickActionChips onSelect={send} />
 
       <View style={styles.inputRow}>
@@ -155,14 +221,20 @@ export default function ChatScreen() {
           returnKeyType="send"
           onSubmitEditing={() => send(input)}
           multiline
+          editable={!isThinking}
         />
         <TouchableOpacity
           style={[styles.voiceBtn, isListening && styles.voiceBtnActive]}
           onPress={toggleVoice}
+          disabled={isThinking}
         >
           <FontAwesome name="microphone" size={18} color={isListening ? '#2C7A3A' : '#8E8E93'} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.sendBtn} onPress={() => send(input)}>
+        <TouchableOpacity
+          style={[styles.sendBtn, isThinking && styles.sendBtnDisabled]}
+          onPress={() => send(input)}
+          disabled={isThinking}
+        >
           <FontAwesome name="send" size={16} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -182,4 +254,8 @@ const styles = StyleSheet.create({
   voiceBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F2F2F7', alignItems: 'center', justifyContent: 'center' },
   voiceBtnActive: { backgroundColor: '#E8F5E9' },
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2C7A3A', alignItems: 'center', justifyContent: 'center' },
+  sendBtnDisabled: { backgroundColor: '#A8C8AE' },
+  thinkingRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, gap: 2 },
+  thinkingDot: { fontSize: 18, color: '#2C7A3A', fontWeight: '700', lineHeight: 20 },
+  thinkingLabel: { fontSize: 13, color: '#8E8E93', marginLeft: 6 },
 });

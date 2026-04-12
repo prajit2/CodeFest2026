@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "CodeFest2026",
-    "slug": "CodeFest2026",
+    "name": "Rocky",
+    "slug": "rocky",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "codefest2026",
+    "scheme": "rocky",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.CodeFest2026",
+      "bundleIdentifier": "com.anonymous.rocky",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Rocky uses your microphone for voice input.",
         "NSSpeechRecognitionUsageDescription": "Rocky uses speech recognition to understand your voice commands."

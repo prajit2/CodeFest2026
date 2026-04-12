@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, ActivityIndicator, Text } from 'react-native';
-import MapView, { Marker, Heatmap, Region } from 'react-native-maps';
+import MapView, { Marker, Circle, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useMapStore } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
@@ -121,18 +121,16 @@ export default function MapScreen() {
           />
         ))}
 
-        {crimeOverlayVisible && (
-          <Heatmap
-            points={crimePoints}
-            opacity={0.7}
-            radius={40}
-            gradient={{
-              colors: ['#00FF00', '#FFFF00', '#FF0000'],
-              startPoints: [0.1, 0.45, 0.85],
-              colorMapSize: 256,
-            }}
+        {crimeOverlayVisible && crimePoints.map((pt, i) => (
+          <Circle
+            key={`crime-${i}`}
+            center={{ latitude: pt.latitude, longitude: pt.longitude }}
+            radius={200}
+            fillColor="rgba(244,67,54,0.25)"
+            strokeColor="rgba(244,67,54,0.5)"
+            strokeWidth={1}
           />
-        )}
+        ))}
       </MapView>
 
       <LayerFilterPanel />

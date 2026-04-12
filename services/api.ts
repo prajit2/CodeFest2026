@@ -5,7 +5,7 @@
 import { ResourceSchema, EventSchema, FeedItemSchema, CrimePointSchema, SeptaArrivalSchema } from './apiTypes';
 
 const BASE_URL = __DEV__
-  ? 'http://localhost:8000'
+  ? 'http://10.250.6.175:8000'
   : 'https://your-deployed-api.com'; // TODO: update when deployed
 
 async function get<T>(path: string, params?: Record<string, string>): Promise<T> {
@@ -34,7 +34,7 @@ export interface ChatMessage {
 }
 
 export interface ChatResponse {
-  message: string;
+  reply: string;
 }
 
 export const api = {
@@ -59,8 +59,11 @@ export const api = {
   },
 
   feed: {
-    get: (university?: string) =>
-      get<FeedItemSchema[]>('/feed', university ? { university } : undefined),
+    get: (university?: string, needs?: string) =>
+      get<FeedItemSchema[]>('/feed', {
+        ...(university ? { university } : {}),
+        ...(needs ? { needs } : {}),
+      }),
   },
 
   transit: {
@@ -75,7 +78,7 @@ export const api = {
   },
 
   chat: {
-    send: (messages: ChatMessage[]) =>
-      post<ChatResponse>('/chat', { messages }),
+    send: (message: string) =>
+      post<ChatResponse>('/chat', { message }),
   },
 };

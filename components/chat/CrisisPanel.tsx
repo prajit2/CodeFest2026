@@ -1,11 +1,13 @@
 import { StyleSheet, View, Text, TouchableOpacity, Linking } from 'react-native';
-import { CRISIS_RESOURCES } from '@/services/rockyIntent';
+import { getCachedCrisisResources } from '@/services/crisisCache';
 
 export function CrisisPanel() {
+  const resources = getCachedCrisisResources();
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Immediate Help Available</Text>
-      {CRISIS_RESOURCES.map((r) => (
+      {resources.map((r) => (
         <TouchableOpacity
           key={r.phone}
           style={styles.row}

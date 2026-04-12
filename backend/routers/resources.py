@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import math
 from database import get_db
-from schemas import ResourceSchema
-from models import Resource
+from schemas import ResourceSchema, SeptaStopSchema
+from models import Resource, SeptaStop
 
 router = APIRouter(prefix="/resources", tags=["resources"])
 
@@ -17,7 +17,24 @@ def _distance_km(lat1, lon1, lat2, lon2):
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def _to_schema(r: Resource) -> ResourceSchema:
+_SEPTA_RADIUS_KM = 0.4  # ~400 m
+
+
+def _nearest_stops(r: Resource, db: Session) -> List[SeptaStopSchema]:
+    """Return SeptaStop rows within _SEPTA_RADIUS_KM of the given resource."""
+    try:
+        all_stops = db.query(SeptaStop).all()
+        nearby = [
+            s for s in all_stops
+            if _distance_km(r.latitude, r.longitude, s.latitude, s.longitude) <= _SEPTA_RADIUS_KM
+        ]
+        nearby.sort(key=lambda s: _distance_km(r.latitude, r.longitude, s.latitude, s.longitude))
+        return [SeptaStopSchema(id=s.id, name=s.name, latitude=s.latitude, longitude=s.longitude) for s in nearby]
+    except Exception:
+        return []
+
+
+def _to_schema(r: Resource, db: Session) -> ResourceSchema:
     return ResourceSchema(
         id=r.id,
         name=r.name,
@@ -28,7 +45,7 @@ def _to_schema(r: Resource) -> ResourceSchema:
         phone=r.phone,
         hours=r.hours,
         description=r.description,
-        nearest_septa_stops=None,
+        nearest_septa_stops=_nearest_stops(r, db),
     )
 
 
@@ -40,7 +57,7 @@ def list_resources(
     query = db.query(Resource).filter(Resource.is_active == True)
     if category:
         query = query.filter(Resource.category == category)
-    return [_to_schema(r) for r in query.all()]
+    return [_to_schema(r, db) for r in query.all()]
 
 
 @router.get("/categories")
@@ -62,7 +79,7 @@ def resources_nearby(
     all_resources = query.all()
     nearby = [r for r in all_resources if _distance_km(lat, lon, r.latitude, r.longitude) <= radius_km]
     nearby.sort(key=lambda r: _distance_km(lat, lon, r.latitude, r.longitude))
-    return [_to_schema(r) for r in nearby]
+    return [_to_schema(r, db) for r in nearby]
 
 
 @router.get("/{resource_id}", response_model=ResourceSchema)
@@ -70,4 +87,4 @@ def get_resource(resource_id: str, db: Session = Depends(get_db)):
     r = db.query(Resource).filter(Resource.id == resource_id, Resource.is_active == True).first()
     if not r:
         raise HTTPException(status_code=404, detail="Resource not found")
-    return _to_schema(r)
+    return _to_schema(r, db)

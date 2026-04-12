@@ -48,6 +48,9 @@ async def arrivals(stop_id: str = Path(...), db: Session = Depends(get_db)):
 
     results: List[SeptaArrivalSchema] = []
     # Response shape: { "stop_name": { "Northbound": [...], "Southbound": [...] } }
+    # SEPTA returns [] or a string on errors — guard before calling .items()
+    if not isinstance(data, dict):
+        return results
     for stop_name, directions in data.items():
         if not isinstance(directions, dict):
             continue

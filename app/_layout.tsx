@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { useUserStore } from '@/store/userStore';
+import { seedCrisisCache } from '@/services/crisisCache';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -25,7 +26,11 @@ export default function RootLayout() {
   }, [error]);
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
+    if (loaded) {
+      // Seed crisis contacts into MMKV so they survive network outages.
+      seedCrisisCache();
+      SplashScreen.hideAsync();
+    }
   }, [loaded]);
 
   if (!loaded) return null;

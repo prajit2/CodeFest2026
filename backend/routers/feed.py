@@ -54,8 +54,9 @@ def get_feed(
     """
     now = datetime.utcnow()
     events = [_event_to_feed(e) for e in db.query(Event).filter(Event.start_time >= now).all()]
-    resources = [_resource_to_feed(r) for r in db.query(Resource).filter(Resource.is_active == True).all()]
-    items = events + resources
+    # Persistent resources (food banks, clinics) belong on the map, not the feed.
+    # Exclude them here to avoid surfacing them as "happening right now."
+    items = events
 
     if needs:
         allowed: set = set()
